@@ -1,0 +1,11 @@
+IndentWidth: 4
+IndentCaseLabels: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  SplitEmptyFunction: true
+  BeforeWhile: false
+  BeforeElse: false
+BreakBeforeBinaryOperators: NonAssignment
+AllowShortFunctionsOnASingleLine: None
+PointerAlignment: Right
