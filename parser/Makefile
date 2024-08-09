@@ -1,20 +1,9 @@
 include ../config.mk
-
-SRC =\
-	token.c\
-	keywords.c\
-	unit.c\
-	parser.c\
-
-OBJ = $(SRC:.c=.o)
-TARGET = libparser.a
-
-DEBUG_OBJ = $(SRC:.c=.debug.o)
-DEBUG_TARGET = $(TARGET).debug.a
+include config.mk
 
 .PHONY: all clean debug
-all: $(TARGET)
-debug: $(DEBUG_TARGET)
+all: $(PARSER_OBJ)
+debug: $(PARSER_DEBUG_OBJ)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -22,11 +11,5 @@ debug: $(DEBUG_TARGET)
 %.debug.o: %.c
 	$(CC) $(CFLAGS) $(CDEBUG) -c $< -o $@
 
-$(TARGET): $(OBJ)
-	$(AR) -rcs $@ $^
-
-$(DEBUG_TARGET): $(DEBUG_OBJ)
-	$(AR) -rcs $@ $^
-
 clean:
-	rm -f $(TARGET) $(OBJ) $(DEBUG_TARGET) $(DEBUG_OBJ)
+	rm -f $(PARSER_OBJ) $(PARSER_DEBUG_OBJ)

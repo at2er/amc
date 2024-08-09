@@ -8,4 +8,6 @@ BraceWrapping:
   BeforeElse: false
 BreakBeforeBinaryOperators: NonAssignment
 AllowShortFunctionsOnASingleLine: None
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Left
 PointerAlignment: Right

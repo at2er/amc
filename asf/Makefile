@@ -1,11 +1,9 @@
 include ../config.mk
-include ../backend.mk
-
-DEBUG_OBJ = $(BACKEND_SRC:.c=.debug.o)
+include config.mk
 
 .PHONY: all clean debug
 all: $(BACKEND_OBJ)
-debug: $(DEBUG_OBJ)
+debug: $(BACKEND_DEBUG_OBJ)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -14,4 +12,4 @@ debug: $(DEBUG_OBJ)
 	$(CC) $(CFLAGS) $(CDEBUG) -c $< -o $@
 
 clean:
-	rm -f $(BACKEND_OBJ) $(DEBUG_OBJ)
+	rm -f $(BACKEND_OBJ) $(BACKEND_DEBUG_OBJ)
