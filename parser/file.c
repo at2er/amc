@@ -4,7 +4,7 @@
 
 int file_init(const char *path, struct file *self)
 {
-    FILE* stream = fopen(path, "r");
+    FILE *stream = fopen(path, "r");
     if (stream == NULL)
         return 1;
     fseek(stream, 0, SEEK_END);
@@ -34,12 +34,20 @@ int file_pos_next(struct file *self)
     return 0;
 }
 
-int file_skip(struct file *self)
+int file_skip_space(struct file *self)
 {
+    while (self->src[self->pos] == ' ') {
+        file_pos_next(self);
+    }
     return 0;
 }
 
-int file_try_skip(struct file *self)
+int file_try_skip_space(struct file *self)
 {
+    if (self->src[self->pos] != ' ') {
+        return 1;
+    }
+
+    file_skip_space(self);
     return 0;
 }

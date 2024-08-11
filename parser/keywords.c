@@ -1,11 +1,13 @@
 #include "keywords.h"
 #include "../utils/utils.h"
+#include "../utils/str/str.h"
 #include "file.h"
 #include "type.h"
 #include "token.h"
+#include "unit.h"
+#include "func.h"
 #include "backend.h"
 
-static int parse_func(struct file *f);
 static int parse_struct(struct file *f);
 static int parse_const(struct file *f);
 static int parse_var(struct file *f);
@@ -17,7 +19,7 @@ static int parse_else(struct file *f);
 static int parse_return(struct file *f);
 
 static struct token keywords[] = {
-    {"parse_func",   parse_func  },
+    {"parse_func",   parse_func_def  },
     {"parse_struct", parse_struct},
     {"parse_const",  parse_const },
     {"parse_var",    parse_var   },
@@ -28,11 +30,6 @@ static struct token keywords[] = {
     {"parse_else",   parse_else  },
     {"parse_return", parse_return},
 };
-
-int parse_func(struct file *f)
-{
-    return 0;
-}
 
 int parse_struct(struct file *f)
 {

@@ -12,7 +12,7 @@ struct file {
 
 int file_init(const char *path, struct file *self);
 int file_pos_next(struct file *self);
-int file_skip(struct file *self);
-int file_try_skip(struct file *self);
+int file_skip_space(struct file *self);
+int file_try_skip_space(struct file *self);
 
 #endif

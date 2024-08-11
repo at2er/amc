@@ -8,10 +8,8 @@ struct token {
     const char *name;
     int (*parse_function)(struct file *f);
     int argc;
-    struct argument {
-        enum GM_TYPE type;
-        void *v;
-    } *args;
+    enum GM_TYPE result_type;
+    enum GM_TYPE *args;
 };
 
 struct token_group {
@@ -20,6 +18,7 @@ struct token_group {
     struct token* tokens;
 };
 
+int token_args_append(struct token *self, enum GM_TYPE type);
 int token_find(str *unit, struct token *result);
 int token_group_find(const char *name);
 int token_group_register(struct token_group *group);

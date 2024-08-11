@@ -7,6 +7,15 @@ static struct {
     struct token_group *groups;
 } *token_groups = NULL;
 
+int token_args_append(struct token *self, enum GM_TYPE type)
+{
+    self->argc += 1;
+    self->args = realloc(self->args, sizeof(enum GM_TYPE) * self->argc);
+    self->args[self->argc - 1] = type;
+
+    return 0;
+}
+
 int token_find(str *unit, struct token *result)
 {
     for (int i = 0; i < token_groups->size; i++) {
@@ -58,7 +67,9 @@ int token_groups_init()
     token_groups->size = 0;
 
     struct token_group default_group = {"default", 0, NULL};
+    struct token_group func_group = {"func", 0, NULL};
     token_group_register(&default_group);
+    token_group_register(&func_group);
     return 0;
 }
 
