@@ -5,7 +5,7 @@ int str_append(str *src, int len, const char *s)
     if (src == NULL)
         return 1;
     str_expand(src, len);
-    memcpy(&src->s[src->len], s, len);
+    memcpy(&src->s[src->len - 1], s, len);
     return 0;
 }
 
