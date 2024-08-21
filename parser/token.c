@@ -7,29 +7,37 @@ static struct {
     struct token_group *groups;
 } *token_groups = NULL;
 
-int token_args_append(struct token *self, enum GM_TYPE type)
+int token_args_append(struct token *self, enum ATOM_TYPE type)
 {
     self->argc += 1;
-    self->args = realloc(self->args, sizeof(enum GM_TYPE) * self->argc);
+    self->args = realloc(self->args, sizeof(enum ATOM_TYPE) * self->argc);
     self->args[self->argc - 1] = type;
 
     return 0;
 }
 
-int token_find(str *unit, struct token *result)
+int token_find(str *unit, struct token **result)
 {
     for (int i = 0; i < token_groups->size; i++) {
-        for (int j = 0; j < token_groups->groups[i].size; j++) {
-            if (strncmp(unit->s, token_groups->groups[i].tokens[j].name,
-                        unit->len)
-                == 0) {
-                result = &token_groups->groups[i].tokens[j];
-                return 0;
-            }
+        if (!token_find_in_group(unit, i, result))
+            return 0;
+    }
+
+    return 1;
+}
+
+int token_find_in_group(str *unit, int group, struct token **result)
+{
+    for (int i = 0; i < token_groups->groups[group].size; i++) {
+        if (strncmp(unit->s, token_groups->groups[group].tokens[i].name,
+                    unit->len)
+            == 0) {
+            *result = &token_groups->groups[group].tokens[i];
+            return 0;
         }
     }
 
-    return 0;
+    return 1;
 }
 
 int token_group_find(const char *name)

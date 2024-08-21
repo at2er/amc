@@ -1,8 +1,10 @@
 include config.mk
 include asf/config.mk
 include parser/config.mk
+include utils/config.mk
 
-STRDIR = utils/str
+UTILSDIR = utils
+STRDIR = $(UTILSDIR)/str
 STRLIB = $(STRDIR)/libstr.a
 PARSERDIR = parser
 BACKEND = asf
@@ -10,45 +12,47 @@ PARSER_TARGET = $(addprefix $(PARSERDIR)/, $(PARSER_OBJ))
 PARSER_DEBUG_TARGET = $(addprefix $(PARSERDIR)/, $(PARSER_DEBUG_OBJ))
 BACKEND_TARGET = $(addprefix $(BACKEND)/, $(BACKEND_OBJ))
 BACKEND_DEBUG_TARGET = $(addprefix $(BACKEND)/, $(BACKEND_DEBUG_OBJ))
+UTILS_TARGET = $(addprefix $(UTILSDIR)/, $(UTILS_OBJ))
+UTILS_DEBUG_TARGET = $(addprefix $(UTILSDIR)/, $(UTILS_DEBUG_OBJ))
 
 SRC = main.c
 OBJ = $(SRC:.c=.o)
+TARGET = amc
 DEBUG_OBJ = $(SRC:.c=.debug.o)
 DEBUG_TARGET = $(TARGET).debug
-TARGET = gmc
 
 CLIBS = -L$(STRDIR) -lstr
 
-.PHONY: all clean
+.PHONY: all clean debug debug_target
+.PHONY: $(PARSERDIR) $(BACKEND) $(UTILSDIR)
 all: $(TARGET)
 debug: $(DEBUG_TARGET)
+debug_target:
+	@$(MAKE) -C $(PARSERDIR) debug
+	@$(MAKE) -C $(BACKEND) debug
+	@$(MAKE) -C $(UTILSDIR) debug
 
-main.o: main.c
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(PARSER_TARGET):
-	@$(MAKE) -C $(PARSERDIR)
-
-$(BACKEND_TARGET):
-	@$(MAKE) -C $(BACKEND)
-
-$(PARSER_DEBUG_TARGET):
-	@$(MAKE) -C $(PARSERDIR) debug
-
-$(BACKEND_DEBUG_TARGET):
-	@$(MAKE) -C $(BACKEND) debug
+%.debug.o: %.c
+	$(CC) $(CFLAGS) $(CDEBUG) -c $< -o $@
 
 $(STRLIB):
 	@$(MAKE) -C $(STRDIR)
 
-$(TARGET): $(OBJ) $(PARSER_TARGET) $(BACKEND_TARGET) $(STRLIB)
-	$(CC) $(CFLAGS) -o $@ $(OBJ) $(PARSER_TARGET) $(BACKEND_TARGET) $(CLIBS)
+$(PARSERDIR) $(BACKEND) $(UTILSDIR):
+	@$(MAKE) -C $@
 
-$(DEBUG_TARGET): $(DEBUG_OBJ) $(PARSER_DEBUG_TARGET) $(BACKEND_DEBUG_TARGET) $(STRLIB)
-	$(CC) $(CFLAGS) $(CDEBUG) -o $@ $(OBJ) $(PARSER_DEBUG_TARGET) $(BACKEND_DEBUG_TARGET) $(CLIBS)
+$(TARGET): $(OBJ) $(PARSERDIR) $(BACKEND) $(UTILSDIR) $(STRLIB)
+	$(CC) $(CFLAGS) -o $@ $(OBJ) $(PARSER_TARGET) $(UTILS_TARGET) $(BACKEND_TARGET) $(CLIBS)
+
+$(DEBUG_TARGET): $(DEBUG_OBJ) debug_target $(STRLIB)
+	$(CC) $(CFLAGS) $(CDEBUG) -o $@ $(DEBUG_OBJ) $(PARSER_DEBUG_TARGET) $(UTILS_DEBUG_TARGET) $(BACKEND_DEBUG_TARGET) $(CLIBS)
 
 clean:
 	rm -f $(TARGET) $(OBJ) $(DEBUG_TARGET) $(DEBUG_OBJ)
 	@$(MAKE) -C $(STRDIR) clean
 	@$(MAKE) -C $(PARSERDIR) clean
 	@$(MAKE) -C $(BACKEND) clean
+	@$(MAKE) -C $(UTILSDIR) clean

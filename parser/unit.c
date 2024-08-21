@@ -3,9 +3,14 @@
 
 int unit_read(str *unit, struct file *f)
 {
-    for (; f->src[f->pos] != ' '; f->pos += 1) {
+    return unit_read_until(' ', unit, f);
+}
+
+int unit_read_until(const char es, str *unit, struct file *f)
+{
+    for (; f->src[f->pos] != es; f->pos += 1) {
         if (f->src[f->pos] == '\0') {
-            printf("gmc: unit_read: end of file.\n");
+            printf("amc: unit_read: end of file.\n");
             return 1;
         }
 
@@ -15,11 +20,11 @@ int unit_read(str *unit, struct file *f)
     return 0;
 }
 
-enum GM_TYPE unit_and_type_read(str *unit, struct file *f)
+enum ATOM_TYPE unit_and_type_read(str *unit, struct file *f)
 {
     str *type_s = str_new();
-    enum GM_TYPE type;
-    unit_read(unit, f);
+    enum ATOM_TYPE type;
+    unit_read_until(':', unit, f);
     file_try_skip_space(f);
     if (f->src[f->pos] == ':') {
         f->pos += 1;
@@ -28,7 +33,7 @@ enum GM_TYPE unit_and_type_read(str *unit, struct file *f)
     }
     file_try_skip_space(f);
     unit_read(type_s, f);
-    type = gm_type_get(type_s);
+    type = atom_type_get(type_s);
     str_free(type_s);
     return type;
 }

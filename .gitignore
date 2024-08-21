@@ -1,3 +1,5 @@
 *.o
 *.a
-gmc
+*.debug.o
+amc
+amc.debug

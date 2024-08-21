@@ -1,8 +1,8 @@
 /*
- * Germ complier's assembly language backend module.
+ * Atom complier's assembly language backend module.
  */
-#ifndef GMC_ASF_H
-#define GMC_ASF_H
+#ifndef AMC_ASF_H
+#define AMC_ASF_H
 
 void backend_init();
 
