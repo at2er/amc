@@ -35,20 +35,9 @@ int backend_stop(enum BE_STOP_SIGNAL bess);
  */
 int backend_end();
 
-int backend_for(struct file *f);
 int backend_struct(struct file *f);
 int backend_const(struct file *f);
 int backend_var(struct file *f);
 int backend_let(struct file *f);
-int backend_if(struct file *f);
-int backend_elif(struct file *f);
-int backend_else(struct file *f);
-int backend_match(struct file *f);
-int backend_while(struct file *f);
-
-int backend_cmd_add(struct file *f);
-int backend_cmd_sub(struct file *f);
-int backend_cmd_div(struct file *f);
-int backend_cmd_mul(struct file *f);
 
 #endif

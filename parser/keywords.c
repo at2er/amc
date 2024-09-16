@@ -1,10 +1,6 @@
-#include "keywords.h"
 #include "../utils/utils.h"
-#include "func.h"
+#include "keywords.h"
 #include "token.h"
-
-//#include "if.c"
-//#include "match.c"
 
 static struct token keywords[] = {
     {"func",   4, parse_func_def, {1, 0}},

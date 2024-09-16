@@ -1,11 +1,12 @@
-#include "func.h"
 #include "../include/backend.h"
 #include "../include/be_func.h"
 #include "../utils/die.h"
 #include "block.h"
 #include "file.h"
+#include "keywords.h"
 #include "parser.h"
 #include "type.h"
+#include "unit.h"
 
 static int func_call_main(struct file *f, struct token *t, struct token *fn);
 static int func_call_read_arg(struct token *fn, struct file *f);
@@ -15,7 +16,8 @@ static int func_def_main(struct file *f, struct token *fn);
 static int func_def_read_arg(struct token *fn, struct file *f);
 static int func_def_read_args(struct token *fn, struct file *f);
 static int func_def_read_block(struct file *f, struct token *fn);
-static int func_def_read_name_type(struct file *f, str *name, enum ATOM_TYPE *type);
+static int func_def_read_name_type(struct file *f, str *name,
+                                   enum ATOM_TYPE *type);
 
 int func_call_main(struct file *f, struct token *t, struct token *fn)
 {

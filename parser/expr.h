@@ -1,6 +1,8 @@
 #ifndef AMC_EXPR_H
 #define AMC_EXPR_H
-#include "backend.h"
+#include "../include/backend.h"
+#include "../include/be_operator.h"
+#include "token.h"
 #include "file.h"
 #include "type.h"
 
@@ -36,6 +38,6 @@ static const struct expr_operator operators[] = {
     {"and", 4, expr_op_and    },
 };
 
-int parse_expr(struct file *f);
+int parse_expr(struct file *f, struct token *fn);
 
 #endif

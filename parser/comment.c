@@ -1,4 +1,4 @@
-#include "comment.h"
+#include "keywords.h"
 
 int parse_comment(struct file *f)
 {
