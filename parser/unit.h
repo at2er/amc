@@ -16,7 +16,7 @@ int unit_read(str *unit, struct file *f);
  *   Won't automatically new a str.
  *   Won't automatically add \0 to end of str.
  */
-int unit_read_until(const char es, str *unit, struct file *f);
+int unit_read_until(const char *es, str *unit, struct file *f);
 
 /**
  * Basically the same as 'unit_read'.

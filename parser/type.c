@@ -1,6 +1,5 @@
 #include "type.h"
 #include "../utils/utils.h"
-#include <stdlib.h>
 
 enum ATOM_TYPE atom_type_get(str *s)
 {
@@ -9,5 +8,5 @@ enum ATOM_TYPE atom_type_get(str *s)
             return atom_type_table[i].type;
     }
 
-    return -1;
+    return AMC_ERR_TYPE;
 }

@@ -2,20 +2,12 @@
 #include "utils/die.h"
 #include <stdio.h>
 
-#define ATOM_BACKEND_ASF
-#define ATOM_BACKEND_NATIVE
 #define ATOM_VERSION "0.0.0"
 
 static int print_version(str *arg, int index, int argc, char *argv[]);
 static int source_comp(str *arg, int index, int argc, char *argv[]);
 
-#if defined(ATOM_BACKEND_ASF)
-#include "asf/asf.h"
-#elif defined(GMC_BACKEND_NATIVE)
-#else
-#error not have any backend
-#endif
-
+#include "include/backend.h"
 #include "parser/file.h"
 #include "parser/keywords.h"
 #include "parser/parser.h"
@@ -46,5 +38,7 @@ int main(int argc, char *argv[])
 
     token_groups_init();
     keyword_init();
+    if (backend_init())
+        die("amc: backend_init: cannot init backend.");
     args_apply(options, argc, argv);
 }

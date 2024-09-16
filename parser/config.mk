@@ -3,7 +3,7 @@ PARSER_SRC =\
 	comment.c\
 	file.c\
 	func.c\
-	indent.c\
+	if.c\
 	keywords.c\
 	match.c\
 	parser.c\

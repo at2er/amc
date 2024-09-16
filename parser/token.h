@@ -1,22 +1,28 @@
 #ifndef AMC_TOKEN_H
 #define AMC_TOKEN_H
+#include "../utils/cint.h"
 #include "../utils/str/str.h"
-#include "type.h"
 #include "file.h"
+#include "type.h"
+
+struct token_flag {
+    unsigned int toplevel:1, in_block:1;
+};
 
 struct token {
     const char *name;
-    int (*parse_function)(struct file *f);
-    int toplevel;
+    u32 name_len;
+    int (*parse_function)(struct file *f, struct token *t, struct token *fn);
+    struct token_flag flags;
 
-    int argc;
+    u8 argc;
     enum ATOM_TYPE result_type;
     enum ATOM_TYPE *args;
 };
 
 struct token_group {
     const char* name;
-    int size;
+    u8 size;
     struct token* tokens;
 };
 

@@ -1,23 +1,22 @@
 #include "keywords.h"
 #include "../utils/utils.h"
-#include "file.h"
-#include "token.h"
 #include "func.h"
-#include "match.h"
+#include "token.h"
 
-static int parse_struct(struct file *f);
-static int parse_const(struct file *f);
-static int parse_var(struct file *f);
-static int parse_let(struct file *f);
+//#include "if.c"
+//#include "match.c"
 
 static struct token keywords[] = {
-    {"func",   parse_func_def, 1},
-    //{"struct", parse_struct  , 2},
-    //{"const",  parse_const   , 2},
-    //{"var",    parse_var     , 2},
-    //{"let",    parse_let     , 2},
-    {"match",  parse_match   , 0},
-    {"return", parse_func_ret, 0},
+    {"func",   4, parse_func_def, {1, 0}},
+    //{"struct", 6, parse_struct,   2},
+    //{"const",  5, parse_const,    2},
+    //{"var",    3, parse_var,      2},
+    //{"let",    3, parse_let,      2},
+    //{"match",  5, parse_match,    0},
+    {"if",     2, parse_if,       {0, 1}},
+    {"elif",   2, parse_elif,     {0, 1}},
+    {"else",   2, parse_else,     {0, 1}},
+    {"return", 6, parse_func_ret, {0, 1}},
 };
 
 int keyword_init()

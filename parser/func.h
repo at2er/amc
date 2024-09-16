@@ -4,8 +4,8 @@
 #include "token.h"
 #include "unit.h"
 
-int parse_func_call(struct token *fn, struct file *f);
-int parse_func_def(struct file *f);
-int parse_func_ret(struct file *f);
+int parse_func_call(struct file *f, struct token *t, struct token *fn);
+int parse_func_def(struct file *f, struct token *t, struct token *fn);
+int parse_func_ret(struct file *f, struct token *t, struct token *fn);
 
 #endif

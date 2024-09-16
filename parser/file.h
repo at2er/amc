@@ -8,8 +8,6 @@ struct file {
     i64 pos;
     i64 len;
 
-    u32 indent;
-
     char *src;
     const char *path;
 };

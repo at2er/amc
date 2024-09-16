@@ -1,5 +1,4 @@
 #include "file.h"
-#include "indent.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -26,8 +25,8 @@ int file_line_next(struct file *self)
     self->cur_line += 1;
     self->cur_column = 0;
     while (self->src[self->pos] != '\n')
-        file_pos_next(self);
-    self->indent = indent_get(self);
+        self->pos += 1;
+    self->pos += 1;
     return 0;
 }
 
