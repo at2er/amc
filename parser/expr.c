@@ -73,10 +73,10 @@ static int expr_sub_append(struct expr **prev, struct expr *cur);
 static int expr_term(struct parser *parser, int top, yz_val *v);
 static int expr_term_chr(struct parser *parser, int top, yz_val *v);
 static int expr_term_expr(struct parser *parser, int top, yz_val *v);
-static int expr_term_identifier(struct parser *parser, int top, yz_val *v);
 static int expr_term_int(struct parser *parser, int top, yz_val *v);
 static int expr_term_null(struct parser *parser, int top, yz_val *v);
 static int expr_term_str(struct parser *parser, int top, yz_val *v);
+static int expr_term_sym(struct parser *parser, int top, yz_val *v);
 static int expr_unary(struct parser *parser, int top, yz_val *v,
 		enum OP_ID op);
 static enum OP_ID expr_unary_get_op(char c);
@@ -330,7 +330,7 @@ int expr_term(struct parser *parser, int top, yz_val *v)
 			&& CHR_IS_NULL(&parser->f->src[parser->f->pos])) {
 		return expr_term_null(parser, top, v);
 	}
-	return expr_term_identifier(parser, top, v);
+	return expr_term_sym(parser, top, v);
 }
 
 int expr_term_chr(struct parser *parser, int top, yz_val *v)
@@ -375,15 +375,6 @@ err_cannot_parse_expr:
 			parser->f->cur_line, parser->f->cur_column);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return EXPR_FAULT;
-}
-
-int expr_term_identifier(struct parser *parser, int top, yz_val *v)
-{
-	if (symbol_read(parser, v) > 0)
-		return EXPR_FAULT;
-	if (expr_check_end_special(parser->f, top))
-		return EXPR_TERM_END;
-	return EXPR_HANDLED;
 }
 
 int expr_term_int(struct parser *parser, int top, yz_val *v)
@@ -452,6 +443,15 @@ int expr_term_str(struct parser *parser, int top, yz_val *v)
 err_backend_failed:
 	printf("amc: expr_term_str: Backend call failed!\n");
 	return EXPR_FAULT;
+}
+
+int expr_term_sym(struct parser *parser, int top, yz_val *v)
+{
+	if (symbol_read(parser, v) > 0)
+		return EXPR_FAULT;
+	if (expr_check_end_special(parser->f, top))
+		return EXPR_TERM_END;
+	return EXPR_HANDLED;
 }
 
 int expr_unary(struct parser *parser, int top, yz_val *v, enum OP_ID op)

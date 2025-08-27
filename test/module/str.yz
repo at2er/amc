@@ -1,6 +1,6 @@
 pub struct Str =>
-	len: mut i32
-	siz: mut i32
+	mut len: i32
+	mut siz: i32
 	s: [char]
 
 fn private: i32 =>

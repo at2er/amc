@@ -151,7 +151,7 @@ err_free_parser:
 
 int parser_get_target_from_mod_path(str *result, str *path)
 {
-	str suffix = {.len = 0, .s = NULL};
+	str suffix = STR_EMPTY;
 	int suffix_need_free = 0;
 	if ((suffix.s = backend_file_get_suffix(&result->len,
 					&suffix_need_free)) == NULL)

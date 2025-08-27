@@ -10,8 +10,8 @@ items=$(find .. -maxdepth 1 -name '*.yz')
 COMPILER="../../amc"
 
 BUILD_DIR="../.cache/amc"
+UNITS_AUTO_DIR="test-units-auto"
 UNITS_DIR="test-units"
-
 
 mkdir -p ../build
 
@@ -44,13 +44,19 @@ compile() {
 	fi
 }
 
-get_unit() {
-	echo "$UNITS_DIR/test-$(basename $1).sh"
-}
-
 test_all() {
 	for item in $items; do
 		test_src "$item"
+	done
+	for item in $(find $UNITS_DIR -name "*.sh"); do
+		echo -e "==> \x1b[34mSpecial unit test begin\x1b[0m: $item $COMPILER -a"
+		$item $COMPILER -a
+		local err=$?
+		if [ $err -ne 0 ]; then
+			echo -e "\x1b[31m -> ERROR\x1b[0m: Special unit test stopped: $err!"
+			exit 1
+		fi
+		echo -e "\x1b[32mDONE\x1b[0m: Special unit test end"
 	done
 }
 
@@ -64,7 +70,7 @@ test_failed() {
 
 test_src() {
 	local input="$1"
-	local unit="$(get_unit $input)"
+	local unit="$UNITS_AUTO_DIR/test-$(basename $input).sh"
 	rm -f "../build/$(basename $input .yz).out"
 	compile "$input"
 	if [ -f "$unit" ]; then

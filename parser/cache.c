@@ -13,7 +13,7 @@
 
 int cache_dir_create(str *root_dir)
 {
-	str dir = {.len = 0, .s = NULL};
+	str dir = STR_EMPTY;
 	if (global_parser.target_path.s != NULL)
 		return 0;
 	str_expand(&dir, root_dir->len

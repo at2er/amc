@@ -10,4 +10,5 @@ build
 compile_commands.json
 test/build
 test/complexc/main
+test/module/main
 .cache

@@ -1,6 +1,8 @@
 #ifndef STR_H
 #define STR_H
 
+#define STR_EMPTY {.len = 0, .s = NULL}
+
 typedef struct str {
 	int len;
 	char *s;
@@ -12,6 +14,6 @@ int str_copy(str *src, str *dest);
 int str_expand(str *src, int len);
 void str_free(str *src);
 void str_free_noself(str *src);
-str* str_new();
+str* str_new(void);
 
 #endif

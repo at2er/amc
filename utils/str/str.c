@@ -69,7 +69,7 @@ void str_free_noself(str *src)
 	src->len = 0;
 }
 
-str *str_new()
+str *str_new(void)
 {
 	str *s = malloc(sizeof(*s));
 	s->s = NULL;

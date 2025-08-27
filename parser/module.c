@@ -127,7 +127,7 @@ int module_check_is_import(struct file *f)
 yz_module *module_parse_import(struct parser *parser)
 {
 	yz_module *err_data = NULL;
-	str path = {.len = 0, .s = NULL};
+	str path = STR_EMPTY;
 	yz_module *result = NULL;
 	struct scope *scope = NULL;
 	if (!module_check_is_import(parser->f))
