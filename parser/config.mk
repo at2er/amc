@@ -13,6 +13,7 @@ PARSER_SRC =\
 	indent.c\
 	keywords.c\
 	let.c\
+	lexer.c\
 	loop.c\
 	match.c\
 	module.c\
@@ -20,9 +21,9 @@ PARSER_SRC =\
 	parser.c\
 	ptr.c\
 	struct.c\
-	symbol.c\
 	type.c\
-	utils.c
+	utils.c\
+	val.c
 
 PARSER_BUILD = ../build/parser
 PARSER_OBJ = $(addprefix $(PARSER_BUILD)/, $(PARSER_SRC:.c=.o))

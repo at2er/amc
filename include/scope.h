@@ -6,13 +6,6 @@
 #include "backend/scope.h"
 #include "symbol.h"
 
-enum SCOPE_STATUS_TYPE {
-	SCOPE_AFTER_IF,
-	SCOPE_IN_BLOCK,
-	SCOPE_IN_LOOP,
-	SCOPE_TOP
-};
-
 struct scope {
 	struct symbol *fn;
 	int indent;

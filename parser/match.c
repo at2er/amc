@@ -5,6 +5,7 @@
 #include "include/expr.h"
 #include "include/indent.h"
 #include "include/keywords.h"
+#include "include/lexer.h"
 #include "include/utils.h"
 #include "../include/backend.h"
 #include "../include/enum.h"
@@ -12,12 +13,6 @@
 #include "../include/parser.h"
 #include "../utils/utils.h"
 #include <stdio.h>
-
-enum MATCH_RESULT {
-	MATCH_RESULT_HANDLED,
-	MATCH_RESULT_END,
-	MATCH_RESULT_FAULT
-};
 
 struct match_context_enum {
 	yz_enum *self;
@@ -45,7 +40,7 @@ static int match_handle_case_enum(struct match_context *context, yz_val *val);
 static int match_handle_context(struct match_context *context, yz_val *val);
 static int match_handle_enum_mode(struct match_context *context, yz_val *val);
 static int match_parse_body(struct match_context *context, yz_val *val);
-static enum MATCH_RESULT match_parse_case(struct match_context *context);
+static enum LEXER_RESULT match_parse_case(struct match_context *context);
 static yz_val *match_parse_case_cond(struct parser *parser);
 static yz_val *match_parse_condition(struct parser *parser);
 
@@ -67,12 +62,10 @@ int match_end_enum_mode(struct match_context *context)
 		goto err_must_match_all;
 	return 0;
 err_must_match_all:
-	printf("amc: %s: %lld,%lld: "ERROR_STR":\n"
+	printf(LEXER_ERR_FMT ERROR_STR":\n"
 			"| You must match all cases "
 			"of the enum: '%s'\n",
-			__func__,
-			context->parser->f->cur_line,
-			context->parser->f->cur_column,
+			LEXER_ERR_FMT_ARG(context->parser->lexer),
 			context->data.e.self->name.s);
 	return 1;
 }
@@ -107,18 +100,14 @@ int match_handle_case_enum(struct match_context *context, yz_val *val)
 	context->data.e.enum_count += 1;
 	return 0;
 err_not_enum:
-	printf("amc: %s: %lld,%lld: "ERROR_STR":\n"
+	printf(LEXER_ERR_FMT ERROR_STR":\n"
 			"| Match enum but case not enum!\n",
-			__func__,
-			context->parser->f->cur_line,
-			context->parser->f->cur_column);
+			LEXER_ERR_FMT_ARG(context->parser->lexer));
 	return 1;
 err_not_same_enum:
-	printf("amc: %s: %lld,%lld: "ERROR_STR":\n"
+	printf(LEXER_ERR_FMT ERROR_STR":\n"
 			"| Match enum and case enum is different!\n",
-			__func__,
-			context->parser->f->cur_line,
-			context->parser->f->cur_column);
+			LEXER_ERR_FMT_ARG(context->parser->lexer));
 	return 1;
 }
 
@@ -149,14 +138,14 @@ int match_handle_enum_mode(struct match_context *context, yz_val *val)
 
 int match_parse_body(struct match_context *context, yz_val *val)
 {
-	enum MATCH_RESULT ret = 0;
+	enum LEXER_RESULT ret = 0;
 	context->handle = backend_call(cond_match_begin)(context->mode);
 	if (context->handle == NULL)
 		return 1;
 	free_yz_val(val);
 	while ((ret = match_parse_case(context))
-			!= MATCH_RESULT_END) {
-		if (ret == MATCH_RESULT_FAULT)
+			!= LEXER_RESULT_END) {
+		if (ret == LEXER_RESULT_FAULT)
 			goto err_free_handle;
 	}
 	if (match_end(context))
@@ -169,43 +158,48 @@ err_free_handle:
 	return 1;
 }
 
-enum MATCH_RESULT
+enum LEXER_RESULT
 match_parse_case(struct match_context *context)
 {
-	i64 orig_column = context->parser->f->cur_column,
-	    orig_line = context->parser->f->cur_line,
-	    orig_pos = context->parser->f->pos;
+	struct sclexer lexer_record;
+	uint64_t orig_pos = sclexer_record(&context->parser->lexer,
+			&lexer_record);
+	struct lexer_tok tok;
 	yz_val *val = NULL;
-	if (indent_read(context->parser->f) != context->parser->scope->indent)
+	if (orig_pos == -1)
+		return LEXER_RESULT_FAULT;
+	if (sclexer_get_line(&context->parser->lexer) == EOF)
+		return LEXER_RESULT_FAULT;
+	if (indent_read(&context->parser->lexer)
+			!= context->parser->scope->indent)
 		goto restore_end;
-	if (context->parser->f->src[context->parser->f->pos] != '|')
+	if (lexer_read_tok(&tok, &context->parser->lexer))
+		return LEXER_RESULT_FAULT;
+	if (tok.type != TOK_TYPE_PIPE_LINE)
 		goto restore_end;
-	file_pos_next(context->parser->f);
-	file_skip_space(context->parser->f);
 	if ((val = match_parse_case_cond(context->parser)) == NULL)
-		return MATCH_RESULT_FAULT;
+		return LEXER_RESULT_FAULT;
 	if (match_handle_case_context(context, val))
-		return MATCH_RESULT_FAULT;
+		return LEXER_RESULT_FAULT;
 	if (backend_call(cond_match_case)(context->handle, val))
-		return MATCH_RESULT_FAULT;
+		return LEXER_RESULT_FAULT;
 	if (parse_block(context->parser))
-		return MATCH_RESULT_FAULT;
+		return LEXER_RESULT_FAULT;
 	if (backend_call(cond_match_case_end)(context->handle))
-		return MATCH_RESULT_FAULT;
-	return MATCH_RESULT_HANDLED;
+		return LEXER_RESULT_FAULT;
+	return LEXER_RESULT_CONTINUE;
 restore_end:
-	context->parser->f->cur_column = orig_column;
-	context->parser->f->cur_line = orig_line;
-	context->parser->f->pos = orig_pos;
-	return MATCH_RESULT_END;
+	if (sclexer_restore(&context->parser->lexer, &lexer_record, orig_pos))
+		return LEXER_RESULT_FAULT;
+	return LEXER_RESULT_END;
 }
 
 yz_val *match_parse_case_cond(struct parser *parser)
 {
 	struct expr *expr = NULL;
 	yz_val *val = NULL;
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line;
+	i64 orig_column = parser->lexer.column,
+	    orig_line = parser->lexer.line;
 	if ((expr = parse_expr(parser, 1)) == NULL)
 		goto err_cannot_parse_expr;
 	if (expr_apply(parser, expr) > 0)
@@ -214,13 +208,13 @@ yz_val *match_parse_case_cond(struct parser *parser)
 		goto err_free_expr;
 	return val;
 err_cannot_parse_expr:
-	printf("| %s: %lld,%lld: Cannot parse expression!\n",
-			__func__, orig_line, orig_column);
+	err_print_pos(__func__, "Cannot parse expression!",
+			orig_line, orig_column);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return NULL;
 err_cannot_apply_expr:
-	printf("| %s: %lld,%lld: Cannot apply expression!\n",
-			__func__, orig_line, orig_column);
+	err_print_pos(__func__, "Cannot apply expression!",
+			orig_line, orig_column);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 err_free_expr:
 	free_expr(expr);
@@ -230,29 +224,29 @@ err_free_expr:
 yz_val *match_parse_condition(struct parser *parser)
 {
 	struct expr *expr = NULL;
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line;
+	i64 orig_column = parser->lexer.column,
+	    orig_line = parser->lexer.line;
 	if ((expr = parse_expr(parser, 1)) == NULL)
 		goto err_cannot_parse_expr;
 	if (expr_apply(parser, expr) > 0)
 		goto err_cannot_apply_expr;
-	if (try_next_line(parser->f) != TRY_RESULT_HANDLED)
+	if (lexer_try_next_line(&parser->lexer) != TRY_RESULT_HANDLED)
 		goto err_no_nl;
 	return expr2yz_val(expr);
 err_cannot_parse_expr:
-	printf("| %s: %lld,%lld: Cannot parse expression!\n",
-			__func__, orig_line, orig_column);
+	err_print_pos(__func__, "Cannot parse expression!",
+			orig_line, orig_column);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return NULL;
 err_cannot_apply_expr:
-	printf("| %s: %lld,%lld: Cannot apply expression!\n",
-			__func__, orig_line, orig_column);
+	err_print_pos(__func__, "Cannot apply expression!",
+			orig_line, orig_column);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return NULL;
 err_no_nl:
 	free_expr(expr);
-	printf("amc: %s: %lld,%lld: Missing line break character.\n",
-			__func__, parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Missing line break character.\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	return NULL;
 }
 
@@ -263,7 +257,7 @@ int parse_match(struct parser *parser)
 		.data.v = NULL,
 		.parser = parser
 	};
-	if (try_next_line(parser->f) == TRY_RESULT_HANDLED) {
+	if (parser->lexer.cur[0] == '\n') {
 		context.mode = MATCH_MODE_COND;
 		return match_parse_body(&context, NULL);
 	}

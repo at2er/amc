@@ -3,13 +3,18 @@
 */
 #include "include/constructor.h"
 
-void free_constructor_handle(struct constructor_handle *handle)
+void free_constructor_handle(struct constructor_handle *self)
 {
-	for (int i = 0; i < handle->len; i++) {
-		if (handle->vs[i] == NULL)
+	free_constructor_handle_no_self(self);
+	free(self);
+}
+
+void free_constructor_handle_no_self(struct constructor_handle *self)
+{
+	for (int i = 0; i < self->len; i++) {
+		if (self->vs[i] == NULL)
 			return;
-		free_yz_val(handle->vs[i]);
+		free_yz_val(self->vs[i]);
 	}
-	free(handle->vs);
-	free(handle);
+	free(self->vs);
 }

@@ -34,7 +34,6 @@ static struct symbol *op_get_ptr_from_expr(struct parser *parser, struct expr *e
 static int op_assign_extracted_val(struct parser *parser, struct expr *e);
 static int op_assign_get_vall_expr(struct expr *e, struct symbol **result);
 static int op_assign_get_vall_sym(struct symbol *sym, struct symbol **result);
-static int op_cmp_ptr_and_null(struct expr *e);
 
 int op_unary_extract_val(struct parser *parser, struct expr *e)
 {
@@ -291,32 +290,6 @@ int op_assign_get_vall_sym(struct symbol *sym, struct symbol **result)
 	return 0;
 }
 
-int op_cmp_ptr_and_null(struct expr *e)
-{
-	struct symbol *sym = NULL;
-	if (e->vall->type.type != AMC_SYM)
-		return 1;
-	sym = e->vall->data.v;
-	if (sym->result_type.type != YZ_PTR)
-		return 1;
-	((yz_ptr_type*)sym->result_type.v)->flag_checked_null = 1;
-	return 0;
-}
-
-int op_apply_cmp(struct expr *e)
-{
-	if (e->valr->type.type == YZ_NULL)
-		if (op_cmp_ptr_and_null(e))
-			return 1;
-	if (backend_call(ops[e->op])(e))
-		goto err_backend_failed;
-	return 0;
-err_backend_failed:
-	printf("amc: op_apply_cmp: Backend failed!\n");
-	backend_stop(BE_STOP_SIGNAL_ERR);
-	return 1;
-}
-
 int op_apply_special(struct parser *parser, struct expr *e)
 {
 	int func_id = 0;
@@ -355,7 +328,7 @@ struct expr *op_extract_val_expr_create(yz_type *sum_type,
 	expr->valr->type.type = AMC_EXTRACT_VAL;
 	expr->valr->type.v = expr->valr->data.v;
 	expr->op = OP_EXTRACT_VAL;
-	expr->priority = 0;
+	expr->op_power = 0;
 	expr->sum_type = sum_type;
 	return expr;
 }

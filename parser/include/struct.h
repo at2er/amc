@@ -10,7 +10,6 @@
 
 int constructor_struct(struct parser *parser, struct symbol *sym);
 int struct_get_elem(struct parser *parser, yz_val *val);
-int struct_get_elem_from_ptr(struct parser *parser, yz_val *val);
 int struct_set_elem(struct parser *parser, struct symbol *sym, int index,
 		enum OP_ID mode);
 int struct_set_elem_from_ptr(struct parser *parser, struct symbol *sym,

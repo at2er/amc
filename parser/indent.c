@@ -3,12 +3,18 @@
 */
 #include "include/indent.h"
 
-int indent_read(struct file *f)
+static int cond(struct sclexer_str_slice *result, struct sclexer *lexer);
+
+int cond(struct sclexer_str_slice *result, struct sclexer *lexer)
 {
-	int i = 0;
-	while (f->src[f->pos] == '\t') {
-		file_pos_next(f);
-		i++;
-	}
-	return i;
+	if (lexer->cur[0] == '\t')
+		return 1;
+	return 0;
+}
+
+int indent_read(struct sclexer *lexer)
+{
+	struct sclexer_str_slice slice;
+	sclexer_read_while(&slice, lexer, cond);
+	return slice.len;
 }

@@ -16,7 +16,7 @@ enum OBJ_SECTION_TYPE {
 int asf_end(str *output);
 int asf_file_end(const char *path, int path_len);
 char *asf_file_get_suffix(int *result_len, int *need_free);
-int asf_file_new(struct file *f);
+int asf_file_new(void);
 int asf_init(int argc, char *argv[]);
 int asf_stop(enum BE_STOP_SIGNAL bess);
 

@@ -4,6 +4,7 @@
 #include "include/expr.h"
 #include "include/block.h"
 #include "include/keywords.h"
+#include "include/lexer.h"
 #include "../include/backend.h"
 #include "../include/parser.h"
 #include <stdio.h>
@@ -17,8 +18,8 @@ int loop_body_parse(struct parser *parser)
 		goto err_parse_block_failed;
 	return 0;
 err_parse_block_failed:
-	printf("amc: loop_body_parse: %lld,%lld: Parse block failed!\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Parse block failed!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	return 1;
 }
 
@@ -32,14 +33,12 @@ int loop_condition_parse(struct parser *parser)
 	free_expr(expr);
 	return 0;
 err_parse_expr_failed:
-	printf("amc: loop_condition_parse: %lld,%lld: "
-			"Parse expression failed!\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Parse expression failed!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	return 1;
 err_apply_expr_failed:
-	printf("amc: loop_condition_parse: %lld,%lld: "
-			"Apply expression failed!\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Apply expression failed!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	return 1;
 }
 
@@ -58,8 +57,8 @@ int parse_while(struct parser *parser)
 		goto err_free_handle;
 	return 0;
 err_backend_failed:
-	printf("amc: parse_while: %lld,%lld: Backend call failed!\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Backend call failed!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 err_free_handle:
 	backend_call(while_free_handle)(handle);
 	return 1;

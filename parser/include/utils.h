@@ -3,12 +3,9 @@
 */
 #ifndef AMC_PARSER_UTILS_H
 #define AMC_PARSER_UTILS_H
-#include "../../include/file.h"
 #include "../../utils/cint.h"
-#include "../../utils/utils.h"
 
 int err_print_pos(const char *name, const char *msg,
 		i64 orig_line, i64 orig_column);
-enum TRY_RESULT try_next_line(struct file *f);
 
 #endif

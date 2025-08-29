@@ -4,10 +4,10 @@
 #ifndef AMC_PARSER_H
 #define AMC_PARSER_H
 #include "decorator.h"
-#include "file.h"
 #include "module.h"
 #include "scope.h"
 #include <limits.h>
+#include <sclexer.h>
 
 struct parsed_node {
 	struct parsed_node *nodes[UCHAR_MAX];
@@ -38,8 +38,8 @@ struct parser_stat {
 };
 
 struct parser {
-	struct file *f;
 	struct parser_imported imported;
+	struct sclexer lexer;
 	str path;
 	struct scope *scope;
 	struct scope *scope_pub;
@@ -56,12 +56,12 @@ struct global_parser {
 
 extern struct global_parser global_parser;
 
-struct parser *parse_file(str *path, const char *real_path, struct file *f);
-struct parser *parser_create(str *path, const char *real_path, struct file *f);
+struct parser *parse_file(str *path, const char *real_path);
+struct parser *parser_create(str *path, const char *real_path);
 int parser_get_target_from_mod_path(str *result, str *path);
 int parser_imported_append(struct parser_imported *imported, yz_module *mod);
 yz_module *parser_imported_find(struct parser_imported *imported, str *name);
-int parser_init(const char *path, struct file *f);
+int parser_init(const char *path);
 struct scope *parser_parsed_file_find(str *path);
 int parser_stat_restore(struct parser_stat *self);
 

@@ -28,14 +28,16 @@ union yz_extract_val_data {
 	yz_val *offset;
 };
 
+enum YZ_EXTRACT_VAL_TYPE {
+	YZ_EXTRACT_ARRAY,
+	YZ_EXTRACT_STRUCT,
+	YZ_EXTRACT_STRUCT_FROM_PTR
+};
+
 typedef struct yz_extract_val {
 	union yz_extract_val_data data;
 	struct symbol *elem, *sym;
-	enum {
-		YZ_EXTRACT_ARRAY,
-		YZ_EXTRACT_STRUCT,
-		YZ_EXTRACT_STRUCT_FROM_PTR
-	} type;
+	enum YZ_EXTRACT_VAL_TYPE type;
 } yz_extract_val;
 
 struct symbol *yz_get_extracted_val(yz_extract_val *val);

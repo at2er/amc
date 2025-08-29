@@ -1,7 +1,6 @@
 #include "utils/die.h"
 
 #include "include/backend.h"
-#include "include/file.h"
 #include "include/parser.h"
 #include <string.h>
 
@@ -154,7 +153,6 @@ int print_version(void)
 
 int main(int argc, char *argv[])
 {
-	struct file f;
 	if (getarg(argc, argv, options))
 		return 1;
 	if (backend_init(argc, argv))
@@ -163,7 +161,7 @@ int main(int argc, char *argv[])
 		return print_version();
 	if (src == NULL)
 		return err_no_input();
-	if (parser_init(src, &f))
+	if (parser_init(src))
 		return 1;
-	free_file_noself(&f);
+	return 0;
 }

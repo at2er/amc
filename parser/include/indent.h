@@ -3,8 +3,8 @@
 */
 #ifndef AMC_PARSER_INDENT_H
 #define AMC_PARSER_INDENT_H
-#include "../../include/file.h"
+#include <sclexer.h>
 
-int indent_read(struct file *f);
+int indent_read(struct sclexer *lexer);
 
 #endif

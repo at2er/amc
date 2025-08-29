@@ -4,6 +4,7 @@
 #include "include/array.h"
 #include "include/identifier.h"
 #include "include/keywords.h"
+#include "include/lexer.h"
 #include "include/struct.h"
 #include "include/type.h"
 #include "../include/backend.h"
@@ -15,10 +16,10 @@ static int let_reg_sym(struct parser *parser, struct symbol *sym);
 
 int let_init_constructor(struct parser *parser, struct symbol *sym)
 {
-	file_pos_next(parser->f);
-	file_skip_space(parser->f);
-	if (parser->f->src[parser->f->pos] == '\n')
-		file_line_next(parser->f);
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &parser->lexer)
+			|| tok.type != TOK_TYPE_BRACE_L)
+		return 1;
 	switch (sym->result_type.type) {
 	case YZ_ARRAY:
 		return constructor_array(parser, sym);
@@ -35,13 +36,11 @@ int let_init_constructor(struct parser *parser, struct symbol *sym)
 
 int let_init_val(struct parser *parser, struct symbol *sym)
 {
-	file_pos_next(parser->f);
-	file_skip_space(parser->f);
-	if (parser->f->src[parser->f->pos] == '{')
+	if (parser->lexer.cur[0] == '{')
 		return let_init_constructor(parser, sym);
 	if (identifier_assign_val(parser, sym, OP_ASSIGN))
 		return 1;
-	return keyword_end(parser->f);
+	return 0;
 }
 
 int let_reg_sym(struct parser *parser, struct symbol *sym)
@@ -51,8 +50,8 @@ int let_reg_sym(struct parser *parser, struct symbol *sym)
 		goto err_cannot_register_sym;
 	return 0;
 err_cannot_register_sym:
-	printf("amc: let_reg_sym: %lld,%lld: Cannot register symbol!\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Cannot register symbol!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return 1;
 }
@@ -60,22 +59,20 @@ err_cannot_register_sym:
 int parse_let(struct parser *parser)
 {
 	struct symbol *result = calloc(1, sizeof(*result));
+	struct lexer_tok tok;
 	result->type = SYM_IDENTIFIER;
-	result->flags.mut = identifier_check_mut(parser->f);
+	result->flags.mut = identifier_check_mut(&parser->lexer);
 	if (parse_type_name_pair(parser, &result->name, &result->result_type))
 		goto err_free_result;
 	if (let_reg_sym(parser, result))
 		goto err_free_result;
-	if (parser->f->src[parser->f->pos] == '\n')
-		return file_line_next(parser->f);
-	if (parse_comment(parser->f))
-		return 0;
-	if (parser->f->src[parser->f->pos] != '=')
+	if (lexer_read_tok(&tok, &parser->lexer)
+			|| tok.type != TOK_TYPE_OP_ASSIGN)
 		goto err_syntax_err;
 	return let_init_val(parser, result);
 err_syntax_err:
-	printf("amc: parse_let: %lld,%lld: Syntax error!\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Syntax error!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 err_free_result:
 	free_symbol(result);
 	backend_stop(BE_STOP_SIGNAL_ERR);

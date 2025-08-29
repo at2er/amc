@@ -3,7 +3,6 @@
 */
 #ifndef AMC_BACKEND_H
 #define AMC_BACKEND_H
-#include "file.h"
 #include "backend/array.h"
 #include "backend/cond.h"
 #include "backend/const.h"
@@ -45,7 +44,7 @@ struct backend {
 	int (*end)(str *output);
 	int (*file_end)(const char *path, int path_len);
 	char *(*file_get_suffix)(int *result_len, int *need_free);
-	int (*file_new)(struct file *f);
+	int (*file_new)(void);
 	int (*init)(int argc, char *argv[]);
 	int (*stop)(enum BE_STOP_SIGNAL bess);
 	backend_array_def_f                array_def;
@@ -116,7 +115,7 @@ int backend_end(str *output);
 
 int backend_file_end(const char *target_path, int len);
 char *backend_file_get_suffix(int *result_len, int *need_free);
-int backend_file_new(struct file *f);
+int backend_file_new(void);
 
 /**
  * Backend init.

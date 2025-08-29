@@ -6,7 +6,6 @@
 #include "../../include/expr.h"
 #include "../../include/symbol.h"
 
-int op_apply_cmp(struct expr *e);
 int op_apply_special(struct parser *parser, struct expr *e);
 int op_assign(struct parser *parser, struct expr *e);
 struct expr *op_extract_val_expr_create(yz_type *sum_type,

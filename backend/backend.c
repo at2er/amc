@@ -175,9 +175,9 @@ char *backend_file_get_suffix(int *result_len, int *need_free)
 	return backends[cur_backend]->file_get_suffix(result_len, need_free);
 }
 
-int backend_file_new(struct file *f)
+int backend_file_new(void)
 {
-	return backends[cur_backend]->file_new(f);
+	return backends[cur_backend]->file_new();
 }
 
 int backend_init(int argc, char *argv[])

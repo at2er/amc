@@ -5,24 +5,17 @@
 #include "include/expr.h"
 #include "include/identifier.h"
 #include "include/keywords.h"
+#include "include/lexer.h"
 #include "include/type.h"
 #include "../include/backend.h"
-#include "../include/file.h"
 #include "../include/parser.h"
 #include "../include/scope.h"
-#include "../include/token.h"
 #include "../include/checker/ptr.h"
 #include "../utils/utils.h"
 #include "include/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-enum FUNC_CALL_RESULT {
-	FUNC_CALL_RESULT_CONTINUE,
-	FUNC_CALL_RESULT_END,
-	FUNC_CALL_RESULT_FAULT
-};
 
 struct func_call_handle {
 	struct symbol *fn;
@@ -35,14 +28,13 @@ static yz_val *func_call_arg_handle(struct expr *expr, struct symbol *arg);
 static int func_call_main(struct parser *parser);
 static int func_call_read_arg(struct func_call_handle *handle);
 static int func_call_read_args(struct parser *parser, yz_val **result);
-static int func_def_block_start(struct parser *parser);
 static int func_def_check_main(const char *name, int len);
 static int func_def_end_scope(struct parser *parser,
 		backend_func_def_handle *handle);
 static int func_def_inherit_decorators(struct decorators *src,
 		struct symbol *dest);
 static int func_def_main(struct parser *parser);
-static int func_def_read_arg(const char *se, struct file *f, void *data);
+static int func_def_read_arg(struct parser *parser);
 static int func_def_read_args(struct parser *parser);
 static int func_def_read_name(struct parser *parser);
 static int func_def_read_type(struct parser *parser);
@@ -68,9 +60,9 @@ err_free_result:
 
 int func_call_main(struct parser *parser)
 {
-	printf("amc: func_call_main: %lld,%lld: "
+	printf(LEXER_ERR_FMT ERROR_STR": "
 			"You cannot call the main function!\n",
-			parser->f->cur_line, parser->f->cur_column);
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return 1;
 }
@@ -79,6 +71,7 @@ int func_call_read_arg(struct func_call_handle *handle)
 {
 	struct expr *expr = NULL;
 	yz_val *result = NULL;
+	struct lexer_tok tok;
 	if (handle->index > handle->fn->argc)
 		goto err_too_many_args;
 	if ((expr = parse_expr(handle->parser, 1)) == NULL)
@@ -90,23 +83,23 @@ int func_call_read_arg(struct func_call_handle *handle)
 		goto err_print_pos;
 	handle->vals[handle->index] = result;
 	handle->index += 1;
-	if (handle->parser->f->src[handle->parser->f->pos] != ',')
-		return FUNC_CALL_RESULT_END;
-	file_pos_next(handle->parser->f);
-	file_skip_space(handle->parser->f);
-	return FUNC_CALL_RESULT_CONTINUE;
+	if (lexer_read_tok(&tok, &handle->parser->lexer))
+		return LEXER_RESULT_FAULT;
+	if (tok.type == TOK_TYPE_COLON)
+		return LEXER_RESULT_CONTINUE;
+	if (tok.type == TOK_TYPE_NEXT_LINE)
+		return LEXER_RESULT_END;
+	return LEXER_RESULT_FAULT;
 err_too_many_args:
-	printf("amc: %s: %lld,%lld: Too many parameters.\n",
-			__func__,
-			handle->parser->f->cur_line,
-			handle->parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Too many parameters.\n",
+			LEXER_ERR_FMT_ARG(handle->parser->lexer));
 	backend_stop(BE_STOP_SIGNAL_ERR);
-	return FUNC_CALL_RESULT_FAULT;
+	return LEXER_RESULT_FAULT;
 err_print_pos:
 	err_print_pos(__func__, NULL,
-			handle->parser->f->cur_line,
-			handle->parser->f->cur_column);
-	return FUNC_CALL_RESULT_FAULT;
+			handle->parser->lexer.line,
+			handle->parser->lexer.column);
+	return LEXER_RESULT_FAULT;
 }
 
 int func_call_read_args(struct parser *parser, yz_val **result)
@@ -118,41 +111,22 @@ int func_call_read_args(struct parser *parser, yz_val **result)
 		.vals = result
 	};
 	int ret = 0;
-	while ((ret = func_call_read_arg(&handle)) != FUNC_CALL_RESULT_END) {
-		if (ret == FUNC_CALL_RESULT_FAULT)
+	while ((ret = func_call_read_arg(&handle)) != LEXER_RESULT_END) {
+		if (ret == LEXER_RESULT_FAULT)
 			return 1;
 	}
 	if (handle.index < parser->sym->argc)
 		goto err_too_few_arg;
 	return 0;
 err_too_few_arg:
-	printf("amc: func_call_read_args: %lld,%lld: Too few arguments!\n"
+	printf(LEXER_ERR_FMT"Too few arguments!\n"
 			"| Function: \"%s\"\n"
 			"| Need %d but only has %d\n",
-			parser->f->cur_line, parser->f->cur_column,
+			LEXER_ERR_FMT_ARG(parser->lexer),
 			parser->sym->name.s,
 			parser->sym->argc, handle.index);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return 0;
-}
-
-int func_def_block_start(struct parser *parser)
-{
-	str block_start = {.len = 2, .s = "=>"};
-	if (try_next_line(parser->f)) {
-		parser->sym->flags.only_declaration = 1;
-		return -1;
-	}
-	if (!token_try_read(&block_start, parser->f))
-		goto err_not_func_def_start;
-	return 0;
-err_not_func_def_start:
-	printf("amc: func_def_block_start: %lld,%lld: "
-			"Function: '%s' define start character not found\n",
-			parser->f->cur_line, parser->f->cur_column,
-			parser->sym->name.s);
-	backend_stop(BE_STOP_SIGNAL_ERR);
-	return 1;
 }
 
 int func_def_check_main(const char *name, int len)
@@ -195,9 +169,6 @@ int func_def_main(struct parser *parser)
 	fn->result_type.type = YZ_I8;
 	fn->result_type.v = NULL;
 	global_parser.has_main = 1;
-	while (parser->f->src[parser->f->pos] != '\n'
-			&& parser->f->src[parser->f->pos] != ';')
-		file_pos_next(parser->f);
 	if ((handle = backend_call(func_def)(fn, 1, 1)) == NULL)
 		return 1;
 	fn->parse_function = func_call_main;
@@ -215,76 +186,70 @@ err_pop_symbol:
 	return 1;
 }
 
-int func_def_read_arg(const char *se, struct file *f, void *data)
+int func_def_read_arg(struct parser *parser)
 {
-	struct parser *parser = data;
 	struct symbol *sym = NULL;
+	struct lexer_tok tok;
 	sym = calloc(1, sizeof(*sym));
 	if (parse_type_name_pair(parser, &sym->name, &sym->result_type))
 		goto err_free_sym;
 	sym->argc = parser->scope->fn->argc;
-	sym->args = NULL;
-	sym->parse_function = NULL;
 	sym->type = SYM_FUNC_ARG;
 	if (symbol_register(sym, &parser->scope->sym_groups[SYMG_SYM]))
 		goto err_free_sym;
 	if (symbol_args_append(parser->scope->fn, sym))
-		goto err_free_sym;
-	return token_list_elem_end(',', f);
+		goto err_free_sym_and_remove;
+	parser->scope->fn->argc++;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return LEXER_RESULT_FAULT;
+	switch (tok.type) {
+	case TOK_TYPE_COMMA:
+		return LEXER_RESULT_CONTINUE;
+	case TOK_TYPE_PAREN_R:
+		return LEXER_RESULT_END;
+	default: break;
+	}
+	return LEXER_RESULT_FAULT;
+err_free_sym_and_remove:
+	symbol_pop(&parser->scope->sym_groups[SYMG_SYM]);
 err_free_sym:
 	free_safe(sym);
 	backend_stop(BE_STOP_SIGNAL_ERR);
-	return 1;
+	return LEXER_RESULT_FAULT;
 }
 
 int func_def_read_args(struct parser *parser)
 {
-	if (parser->f->src[parser->f->pos] != '(')
+	int ret = 0;
+	struct lexer_tok tok;
+	if (parser->lexer.cur[0] == ':')
+		return 0;
+	if (lexer_read_tok(&tok, &parser->lexer))
 		return 1;
-	file_pos_next(parser->f);
-	file_skip_space(parser->f);
-	if (token_parse_list(",)", parser, parser->f, func_def_read_arg))
-		goto err_args_cannot_parse;
-	if (parser->f->src[parser->f->pos] != ')')
+	if (tok.type != TOK_TYPE_PAREN_L)
 		return 1;
-	file_pos_next(parser->f);
-	file_skip_space(parser->f);
+	while ((ret = func_def_read_arg(parser)) != LEXER_RESULT_END) {
+		if (ret == LEXER_RESULT_FAULT)
+			return 1;
+	}
 	return 0;
-err_args_cannot_parse:
-	printf("amc: func_def_read_args: %lld,%lld: "
-			"Cannot parse function arguments!\n",
-			parser->f->cur_line, parser->f->cur_column);
-	backend_stop(BE_STOP_SIGNAL_ERR);
-	return 1;
 }
 
 int func_def_read_name(struct parser *parser)
 {
-	const char *tok_end = " \t\n(:;";
-	str token = TOKEN_NEW;
-	if (token_read_before(tok_end, &token, parser->f) == NULL)
-		goto err_eof;
-	file_skip_space(parser->f);
-	keyword_end(parser->f);
-	if (token.len == 3 && strncmp("rec", token.s, 3) == 0) {
-		parser->scope->fn->flags.rec = 1;
-		token.len = 0;
-		if (token_read_before(tok_end, &token, parser->f) == NULL)
-			goto err_eof;
-		file_skip_space(parser->f);
-		keyword_end(parser->f);
-	}
-	str_copy(&token, &parser->scope->fn->name);
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return 1;
+	if (tok.type != TOK_TYPE_STR)
+		return 1;
+	if (str_copy(&tok.data.s, &parser->scope->fn->name))
+		return 1;
 	if (backend_call(symbol_get_path)(&parser->scope->fn->path,
 				&parser->path,
 				parser->scope->fn->name.s,
 				parser->scope->fn->name.len))
 		goto err_get_path_failed;
 	return 0;
-err_eof:
-	printf("amc: func_def_read_name: end of file\n");
-	backend_stop(BE_STOP_SIGNAL_ERR);
-	return 1;
 err_get_path_failed:
 	printf("amc: func_def_read_name: Get symbol path failed!\n");
 	backend_stop(BE_STOP_SIGNAL_ERR);
@@ -293,20 +258,14 @@ err_get_path_failed:
 
 int func_def_read_type(struct parser *parser)
 {
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line;
-	if (parser->f->src[parser->f->pos] != ':')
-		goto err_cannot_get_type;
-	file_pos_next(parser->f);
-	file_skip_space(parser->f);
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return 1;
+	if (tok.type != TOK_TYPE_COLON)
+		return 1;
 	if (parse_type(parser, &parser->scope->fn->result_type))
-		goto err_cannot_get_type;
+		return 1;
 	return 0;
-err_cannot_get_type:
-	printf("amc: func_def_read_type: %lld,%lld: Cannot get type!\n",
-			orig_line, orig_column);
-	backend_stop(BE_STOP_SIGNAL_ERR);
-	return 1;
 }
 
 yz_val *func_ret_get_val(struct symbol *fn, struct expr *expr)
@@ -359,7 +318,7 @@ int parse_func_def(struct parser *parser)
 	struct scope *dest_scope = parser->stat.has_pub
 		? parser->scope_pub : parser->scope;
 	struct symbol *result = calloc(1, sizeof(*result));
-	int ret = 0;
+	struct lexer_tok tok;
 	struct scope fn_scope = {
 		.fn = result,
 		.indent = parser->scope->indent,
@@ -377,8 +336,7 @@ int parse_func_def(struct parser *parser)
 			goto err_free_result;
 		return 0;
 	}
-	if (parser->f->src[parser->f->pos] != ':'
-			&& func_def_read_args(parser))
+	if (func_def_read_args(parser))
 		goto err_free_result;
 	if (func_def_read_type(parser))
 		goto err_free_result;
@@ -387,12 +345,14 @@ int parse_func_def(struct parser *parser)
 	result->flags.in_block = 1;
 	result->parse_function = parse_func_call;
 	result->type = SYM_FUNC;
-	if ((ret = func_def_block_start(parser)) > 0)
+	if (lexer_read_tok(&tok, &parser->lexer))
 		goto err_free_result;
 	if (symbol_register(result, &dest_scope->sym_groups[SYMG_FUNC]))
 		goto err_free_result;
-	if (ret == -1)
+	if (tok.type == TOK_TYPE_NEXT_LINE)
 		return func_def_end_scope(parser, NULL);
+	if (tok.type != TOK_TYPE_BLOCK_START)
+		goto err_free_and_pop_result;
 	handle = backend_call(func_def)(result, parser->stat.has_pub, 0);
 	if (handle == NULL)
 		goto err_free_and_pop_result;
@@ -414,15 +374,12 @@ err_free_scope_status:
 int parse_func_ret(struct parser *parser)
 {
 	struct expr *expr = NULL;
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line;
 	yz_val *val = NULL;
 	if ((expr = parse_expr(parser, 1)) == NULL)
 		return err_print_pos(__func__, "Cannot parse expr!",
-				orig_line, orig_column);
+				parser->lexer.line, parser->lexer.column);
 	if (expr_apply(parser, expr) > 0)
 		goto err_cannot_apply_expr;
-	keyword_end(parser->f);
 	if ((val = func_ret_get_val(parser->scope->fn, expr)) == NULL)
 		goto err_get_val_failed;
 	if (backend_call(func_ret)(val, strncmp(parser->scope->fn->name.s,
@@ -433,23 +390,12 @@ int parse_func_ret(struct parser *parser)
 err_cannot_apply_expr:
 	free_expr(expr);
 	return err_print_pos(__func__, "Cannot apply expr!",
-			orig_line, orig_column);
+			parser->lexer.line, parser->lexer.column);
 err_get_val_failed:
 	return err_print_pos(__func__, "Get value failed!",
-			orig_line, orig_column);
+			parser->lexer.line, parser->lexer.column);
 err_backend_failed:
 	free_yz_val(val);
 	return err_print_pos(__func__, "Backend call failed!",
-			orig_line, orig_column);
-}
-
-int func_call_read(struct parser *parser, yz_val *val, struct symbol *fn)
-{
-	parser->sym = fn;
-	if (fn->parse_function(parser))
-		return 1;
-	val->data.sym = fn;
-	val->type.type = AMC_SYM;
-	val->type.v = val->data.sym;
-	return 0;
+			parser->lexer.line, parser->lexer.column);
 }

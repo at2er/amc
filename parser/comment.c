@@ -3,11 +3,9 @@
 */
 #include "include/keywords.h"
 
-int parse_comment(struct file *f)
+int parse_comment(char c)
 {
-	if (f->src[f->pos] == ';') {
-		file_line_next(f);
+	if (c == ';')
 		return 1;
-	}
 	return 0;
 }

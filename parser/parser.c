@@ -3,10 +3,10 @@
 */
 #include "include/cache.h"
 #include "include/decorator.h"
+#include "include/lexer.h"
 #include "../include/parser.h"
 #include "../include/backend.h"
 #include "../include/symbol.h"
-#include "../include/token.h"
 #include "../utils/die.h"
 #include "../utils/str/str.h"
 #include "include/keywords.h"
@@ -33,26 +33,33 @@ struct global_parser global_parser = {
 };
 
 static int parse_line(struct parser *parser);
+static int parse_line_str(struct parser *parser, str *s);
 static int parser_create_get_path(str *result, str *path);
 
 int parse_line(struct parser *parser)
 {
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return 1;
+	switch (tok.type) {
+	case TOK_TYPE_STR:
+		return parse_line_str(parser, &tok.data.s);
+	case TOK_TYPE_DECORATOR:
+		return parse_decorator(&parser->stat.decorators,
+				&parser->lexer);
+	case TOK_TYPE_COMMENT:
+		return 0;
+	default: break;
+	}
+	return 1;
+}
+
+int parse_line_str(struct parser *parser, str *s)
+{
 	char *err_msg;
 	int ret = 0;
 	struct symbol *sym = NULL;
-	str token = TOKEN_NEW;
-	file_skip_space(parser->f);
-	if (parse_comment(parser->f))
-		return -1;
-	if (parser->f->src[parser->f->pos] == '\n')
-		return 0;
-	if (parser->f->src[parser->f->pos] == '@') {
-		parser->stat.decorators.has = 1;
-		return parse_decorator(&parser->stat.decorators, parser->f);
-	}
-	if (token_next(&token, parser->f))
-		return 1;
-	if (!keyword_find(&token, &sym))
+	if (!keyword_find(s, &sym))
 		goto err_sym_not_found;
 	if (!sym->flags.toplevel)
 		goto err_not_toplevel;
@@ -61,23 +68,20 @@ int parse_line(struct parser *parser)
 		return 1;
 	if (parser_stat_restore(&parser->stat))
 		return 1;
-	return ret;
+	return 0;
 err_sym_not_found:
-	err_msg = str2chr(token.s, token.len);
-	printf("amc: parser.parse_line: %lld,%lld: "
-			"symbol not found from token\n"
-			"| Token: \"%s\"\n",
-			parser->f->cur_line, parser->f->cur_column, err_msg);
+	err_msg = str2chr(s->s, s->len);
+	printf(LEXER_ERR_FMT"symbol not found from token: \"%s\"\n",
+			LEXER_ERR_FMT_ARG(parser->lexer), err_msg);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	free(err_msg);
-	return 2;
+	return 1;
 err_not_toplevel:
-	err_msg = str2chr(token.s, token.len);
-	printf("amc: parser.parse_line: %lld,%lld: token is not toplevel.\n"
-			"| Token: \"%s\"\n",
-			parser->f->cur_line, parser->f->cur_column, err_msg);
+	err_msg = str2chr(s->s, s->len);
+	printf(LEXER_ERR_FMT"token: \"%s\" is not toplevel.\n",
+			LEXER_ERR_FMT_ARG(parser->lexer), err_msg);
 	backend_stop(BE_STOP_SIGNAL_ERR);
-	return 2;
+	return 1;
 }
 
 int parser_create_get_path(str *result, str *path)
@@ -96,23 +100,19 @@ int parser_create_get_path(str *result, str *path)
 	return 0;
 }
 
-struct parser *parse_file(str *path, const char *real_path, struct file *f)
+struct parser *parse_file(str *path, const char *real_path)
 {
-	struct parser *parser = parser_create(path, real_path, f);
+	struct parser *parser = parser_create(path, real_path);
 	int ret = 0;
 	printf("==> \x1b[32mCompiling\x1b[0m: %s\n", real_path);
-	if (file_init(real_path, f))
-		die("amc: file_init: no such file: %s\n", path);
-	if (backend_file_new(f))
+	if (backend_file_new())
 		die("amc: backend_file_new: cannot create new file: %s", path);
 
-	while (f->src[f->pos] != '\0') {
+	while (!sclexer_get_line(&parser->lexer)) {
 		if ((ret = parse_line(parser)) > 0)
 			goto err_free_parser;
-		if (f->src[f->pos] == '\0')
+		if (ret == -1)
 			break;
-		if (ret != -1)
-			file_line_next(f);
 	}
 	if (backend_file_end(parser->target.s, parser->target.len))
 		goto err_free_parser;
@@ -122,10 +122,9 @@ err_free_parser:
 	return NULL;
 }
 
-struct parser *parser_create(str *path, const char *real_path, struct file *f)
+struct parser *parser_create(str *path, const char *real_path)
 {
 	struct parser *result = calloc(1, sizeof(*result));
-	result->f = f;
 	result->scope = calloc(1, sizeof(*result->scope));
 	result->scope->fn = NULL;
 	result->scope->indent = 0;
@@ -137,8 +136,9 @@ struct parser *parser_create(str *path, const char *real_path, struct file *f)
 	result->scope_pub->parent = NULL;
 	result->scope_pub->status = NULL;
 	result->scope->parent = result->scope_pub;
-	//result->stat.decorators.hooks
-	//	= calloc(1, sizeof(*result->stat.decorators.hooks));
+	if (sclexer_init(real_path, &result->lexer))
+		goto err_free_parser;
+	result->lexer.stop_chrs_in_str = "!@#$%^&*[]()+=;:'\",<.>/?";
 	if (parser_get_target_from_mod_path(&result->target, path))
 		goto err_free_parser;
 	if (parser_create_get_path(&result->path, path))
@@ -168,7 +168,7 @@ int parser_get_target_from_mod_path(str *result, str *path)
 	return 0;
 }
 
-int parser_init(const char *path, struct file *f)
+int parser_init(const char *path)
 {
 	int free_root_dir_cpy = 0, free_pwd = 0;
 	struct parser *parser = NULL;
@@ -197,7 +197,7 @@ int parser_init(const char *path, struct file *f)
 	if (global_parser.target_path.s == NULL)
 		if (cache_dir_create(&global_parser.root_dir))
 			return 0;
-	parser = parse_file(&global_parser.root_mod, path, f);
+	parser = parse_file(&global_parser.root_mod, path);
 	if (parser == NULL)
 		return 1;
 	free_parser(parser);

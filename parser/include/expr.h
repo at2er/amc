@@ -8,5 +8,6 @@
 
 int expr_apply(struct parser *parser, struct expr *e);
 struct expr *parse_expr(struct parser *parser, int top);
+struct expr *parse_expr_unary(struct parser *parser, char index);
 
 #endif

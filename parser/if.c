@@ -7,14 +7,8 @@
 #include "include/keywords.h"
 #include "../include/backend.h"
 #include "../include/parser.h"
-#include "../include/token.h"
+#include "include/lexer.h"
 #include <stdio.h>
-
-enum IF_CONTEXT_RESULT {
-	IF_RESULT_CONTINUE,
-	IF_RESULT_END,
-	IF_RESULT_FAULT
-};
 
 struct if_context {
 	backend_cond_if_handle *handle;
@@ -22,16 +16,15 @@ struct if_context {
 };
 
 static int if_condition_parse(struct parser *parser);
-static enum IF_CONTEXT_RESULT if_continue(struct if_context *context);
+static enum LEXER_RESULT if_continue(struct if_context *context);
 static int if_parse_block(struct parser *parser);
-static int parse_elif(struct if_context *context);
 static int parse_else(struct if_context *context);
 
 int if_condition_parse(struct parser *parser)
 {
 	struct expr *expr = NULL;
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line;
+	uint64_t orig_column = parser->lexer.column,
+	         orig_line = parser->lexer.line;
 	if ((expr = parse_expr(parser, 1)) == NULL)
 		goto err_cannot_parse_expr;
 	if (expr_apply(parser, expr) > 0)
@@ -39,45 +32,39 @@ int if_condition_parse(struct parser *parser)
 	free_expr(expr);
 	return 0;
 err_cannot_parse_expr:
-	printf("|< amc: if_condition_parse: %lld,%lld: "
-			"Cannot parse expression!\n",
+	printf("|< "LEXER_ERR_FMT"Cannot parse expression!\n",
+			__func__, parser->lexer.fpath,
 			orig_line, orig_column);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return 1;
 err_cannot_apply_expr:
-	printf("|< amc: if_condition_parse: %lld,%lld: "
-			"Cannot apply expression!\n",
+	printf("|< "LEXER_ERR_FMT"Cannot apply expression!\n",
+			__func__, parser->lexer.fpath,
 			orig_line, orig_column);
 	backend_stop(BE_STOP_SIGNAL_ERR);
 	return 1;
 }
 
-enum IF_CONTEXT_RESULT if_continue(struct if_context *context)
+enum LEXER_RESULT if_continue(struct if_context *context)
 {
-	str elif_str = {.len = 4, .s = "elif"},
-	    else_str = {.len = 4, .s = "else"};
-	i64 orig_column = context->parser->f->cur_column,
-	    orig_line = context->parser->f->cur_line,
-	    orig_pos = context->parser->f->pos;
-	if (indent_read(context->parser->f) != context->parser->scope->indent)
+	struct sclexer lexer_record;
+	uint64_t orig_pos =
+		sclexer_record(&context->parser->lexer, &lexer_record);
+	if (orig_pos == -1)
+		return LEXER_RESULT_FAULT;
+	if (indent_read(&context->parser->lexer)
+			!= context->parser->scope->indent)
 		goto restore_end;
-	if (token_try_read(&elif_str, context->parser->f)) {
-		if (parse_elif(context))
-			return IF_RESULT_FAULT;
-		return IF_RESULT_CONTINUE;
-	}
-	if (token_try_read(&else_str, context->parser->f)) {
-		if (parse_else(context))
-			return IF_RESULT_FAULT;
-		return IF_RESULT_END;
-	}
-	if (parse_comment(context->parser->f))
-		return IF_RESULT_CONTINUE;
+	if (lexer_try_read_str(&context->parser->lexer, "else", 4)
+			!= TRY_RESULT_HANDLED)
+		goto restore_end;
+	if (parse_else(context))
+		return LEXER_RESULT_FAULT;
+	return LEXER_RESULT_END;
 restore_end:
-	context->parser->f->cur_column = orig_column;
-	context->parser->f->cur_line = orig_line;
-	context->parser->f->pos = orig_pos;
-	return IF_RESULT_END;
+	if (sclexer_restore(&context->parser->lexer, &lexer_record, orig_pos))
+		return LEXER_RESULT_FAULT;
+	return LEXER_RESULT_END;
 }
 
 int if_parse_block(struct parser *parser)
@@ -86,33 +73,16 @@ int if_parse_block(struct parser *parser)
 		goto err_parse_block_failed;
 	return 0;
 err_parse_block_failed:
-	printf("amc: if_block_parse: %lld,%lld: Parse block failed!\n",
-			parser->f->cur_line, parser->f->cur_column);
-	return 1;
-}
-
-int parse_elif(struct if_context *context)
-{
-	if (if_condition_parse(context->parser))
-		return 1;
-	if (backend_call(cond_if_cond)(context->handle))
-		return 1;
-	if (if_parse_block(context->parser))
-		return 1;
-	if (backend_call(cond_elif)(context->handle))
-		goto err_backend_failed;
-	return 0;
-err_backend_failed:
-	printf("amc: parse_elif: %lld,%lld: Backend call failed!\n",
-			context->parser->f->cur_line,
-			context->parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Parse block failed!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	return 1;
 }
 
 int parse_else(struct if_context *context)
 {
-	str block_start = {.len = 2, .s = "=>"};
-	if (!token_try_read(&block_start, context->parser->f))
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &context->parser->lexer)
+			|| tok.type != TOK_TYPE_BLOCK_START)
 		goto err_block_start_not_found;
 	if (parse_block(context->parser))
 		goto err_parse_block_failed;
@@ -120,19 +90,16 @@ int parse_else(struct if_context *context)
 		goto err_backend_failed;
 	return 0;
 err_block_start_not_found:
-	printf("amc: parse_else: %lld,%lld: block start symbol not found!\n",
-			context->parser->f->cur_line,
-			context->parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Block start symbol not found!\n",
+			LEXER_ERR_FMT_ARG(context->parser->lexer));
 	return 1;
 err_parse_block_failed:
-	printf("amc: parse_else: %lld,%lld: Parse block failed!\n",
-			context->parser->f->cur_line,
-			context->parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Parse block failed!\n",
+			LEXER_ERR_FMT_ARG(context->parser->lexer));
 	return 1;
 err_backend_failed:
-	printf("amc: parse_else: %lld,%lld: Backend call failed!\n",
-			context->parser->f->cur_line,
-			context->parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Backend call failed!\n",
+			LEXER_ERR_FMT_ARG(context->parser->lexer));
 	return 1;
 }
 
@@ -153,16 +120,16 @@ int parse_if(struct parser *parser)
 		goto err_free_handle;
 	if (backend_call(cond_if)(context.handle))
 		goto err_free_handle;
-	while ((ret = if_continue(&context)) != IF_RESULT_END) {
-		if (ret == IF_RESULT_FAULT)
+	while ((ret = if_continue(&context)) != LEXER_RESULT_END) {
+		if (ret == LEXER_RESULT_FAULT)
 			goto err_free_handle;
 	}
 	if (backend_call(cond_if_end)(context.handle))
 		return 1;
 	return 0;
 err_backend_failed:
-	printf("amc: parse_if: %lld,%lld: Backend call failed!\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Backend call failed!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	return 1;
 err_free_handle:
 	backend_call(cond_if_free_handle)(context.handle);

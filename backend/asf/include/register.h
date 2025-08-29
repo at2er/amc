@@ -67,6 +67,6 @@ static const unsigned int ASF_REG_64_OFFSET = 0;
 str *asf_reg_clean(enum ASF_REGS reg);
 str *asf_reg_get_str(struct asf_reg *reg);
 enum ASF_REGS asf_reg_get(enum ASF_BYTES type);
-int asf_regs_init();
+int asf_regs_init(void);
 
 #endif

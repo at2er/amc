@@ -4,14 +4,13 @@
 #include "include/block.h"
 #include "include/expr.h"
 #include "include/indent.h"
+#include "include/lexer.h"
 #include "include/keywords.h"
 #include "include/utils.h"
 #include "../include/backend.h"
-#include "../include/file.h"
 #include "../include/parser.h"
 #include "../include/scope.h"
-#include "../include/token.h"
-#include "../utils/str/str.h"
+#include <sclexer.h>
 #include <stdio.h>
 
 static int block_parse_direct(struct parser *parser);
@@ -22,10 +21,6 @@ static int block_parse_line(struct parser *parser);
 int block_parse_direct(struct parser *parser)
 {
 	int ret = 0;
-	if (try_next_line(parser->f))
-		return 0;
-	if (parser->f->src[parser->f->pos] == '(')
-		return block_parse_expr(parser);
 	if ((ret = block_parse_keyword(parser)) == 0)
 		return 0;
 	if (ret > 0)
@@ -38,28 +33,29 @@ int block_parse_expr(struct parser *parser)
 	struct expr *expr = NULL;
 	if ((expr = parse_expr(parser, 1)) == NULL)
 		return err_print_pos(__func__, "Cannot parse expression!",
-				parser->f->cur_line, parser->f->cur_column);
+				parser->lexer.line, parser->lexer.column);
 	if (expr_apply(parser, expr) > 0)
 		return err_print_pos(__func__, "Cannot apply expression!",
-				parser->f->cur_line, parser->f->cur_column);
+				parser->lexer.line, parser->lexer.column);
 	free_expr(expr);
-	file_pos_next(parser->f);
 	return 0;
 }
 
 int block_parse_keyword(struct parser *parser)
 {
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line,
-	    orig_pos = parser->f->pos;
+	struct sclexer lexer_record;
+	long orig_pos = sclexer_record(&parser->lexer, &lexer_record);
 	struct symbol *sym = NULL;
-	str token = TOKEN_NEW;
-	if (token_next(&token, parser->f))
+	struct lexer_tok tok;
+	if (orig_pos == -1)
 		return 1;
-	if (!keyword_find(&token, &sym)) {
-		parser->f->cur_column = orig_column;
-		parser->f->cur_line = orig_line;
-		parser->f->pos = orig_pos;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return 1;
+	if (tok.type != TOK_TYPE_STR)
+		return 1;
+	if (!keyword_find(&tok.data.s, &sym)) {
+		if (sclexer_restore(&parser->lexer, &lexer_record, orig_pos))
+			return 1;
 		return -1;
 	}
 	if (!sym->flags.in_block)
@@ -74,26 +70,20 @@ err_not_in_block:
 
 int block_parse_line(struct parser *parser)
 {
-	int indent = 0, ret = 0;
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line,
-	    orig_pos = parser->f->pos;
-	if ((indent = indent_read(parser->f)) != parser->scope->indent) {
-		parser->f->cur_column = orig_column;
-		parser->f->cur_line = orig_line;
-		parser->f->pos = orig_pos;
-		return -1;
+	struct sclexer lexer_record;
+	long orig_pos = sclexer_record(&parser->lexer, &lexer_record);
+	if (orig_pos == -1)
+		return LEXER_RESULT_FAULT;
+	if (sclexer_get_line(&parser->lexer) == EOF)
+		return LEXER_RESULT_FAULT;
+	if (indent_read(&parser->lexer) != parser->scope->indent) {
+		if (sclexer_restore(&parser->lexer, &lexer_record, orig_pos))
+			return LEXER_RESULT_FAULT;
+		return LEXER_RESULT_END;
 	}
-	file_skip_space(parser->f);
-	if ((ret = block_parse_direct(parser)))
-		return ret;
-	return 0;
-}
-
-int block_check_start(struct file *f)
-{
-	str expect = {.len = 2, .s = "=>"};
-	return token_try_read(&expect, f);
+	if (block_parse_direct(parser))
+		return LEXER_RESULT_FAULT;
+	return LEXER_RESULT_CONTINUE;
 }
 
 int parse_block(struct parser *parser)
@@ -108,13 +98,13 @@ int parse_block(struct parser *parser)
 	if (scope_check_is_correct(&cur_scope))
 		return 1;
 	parser->scope = &cur_scope;
-	if (!try_next_line(parser->f)) {
+	if (parser->lexer.cur[0] != '\n') {
 		if (block_parse_direct(parser))
 			goto err_restore_scope;
 		goto restore;
 	}
-	while ((ret = block_parse_line(parser)) != -1) {
-		if (ret > 0)
+	while ((ret = block_parse_line(parser)) != LEXER_RESULT_END) {
+		if (ret == LEXER_RESULT_FAULT)
 			goto err_restore_scope;
 	}
 restore:

@@ -10,8 +10,9 @@ include utils/config.mk
 # libs
 include lib/libgetarg.mk
 include lib/libsctrie.mk
+include lib/libsclexer.mk
 CLIBS  = -L$(STRDIR) -lstr \
-	$(LIBGETARG) $(LIBSCTRIE)
+	$(LIBGETARG) $(LIBSCTRIE) $(LIBSCLEXER)
 STRDIR = $(UTILS)/str
 STRLIB = $(STRDIR)/libstr.a
 

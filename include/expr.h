@@ -18,15 +18,9 @@
 		&& (EXPR)->vall == NULL\
 		&& (EXPR)->valr != NULL)
 
-struct expr_operator {
-	const char *sym;
-	int priority;
-	enum OP_ID id;
-};
-
 struct expr {
 	enum OP_ID op;
-	int priority;
+	int op_power;
 	yz_type *sum_type;
 	yz_val *vall, *valr;
 };

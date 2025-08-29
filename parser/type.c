@@ -2,94 +2,100 @@
    SPDX-License-Identifier: GPL-3.0-or-later
 */
 #include "include/array.h"
+#include "include/lexer.h"
 #include "include/ptr.h"
-#include "include/symbol.h"
-#include "include/token.h"
 #include "include/type.h"
 #include "../include/parser.h"
-#include "../include/token.h"
 #include <sctrie.h>
 #include <stdio.h>
 #include <string.h>
 
+static int parse_type_handle_str_kind(struct parser *parser, yz_type *result,
+		str *s);
 static int type_get_from_module(str *name, yz_type *type,
 		struct parser *parser);
 static int type_pair_parse_type(struct parser *parser, yz_type *type);
+
+int parse_type_handle_str_kind(struct parser *parser, yz_type *result, str *s)
+{
+	yz_user_type *type = NULL;
+	if (parser->lexer.cur[0] == '.') {
+		if (type_get_from_module(s, result, parser))
+			return 1;
+		return 0;
+	}
+	result->type = yz_type_get(s);
+	result->v = NULL;
+	if (result->type != AMC_ERR_TYPE)
+		return 0;
+	if ((type = yz_user_type_find(s, parser->scope)) == NULL)
+		return 1;
+	return parse_type_user(type, result);
+}
 
 int type_get_from_module(str *name, yz_type *type, struct parser *parser)
 {
 	yz_module *mod = NULL;
 	struct scope *orig_scope = parser->scope;
 	int ret = 0;
-	if (parser->f->src[parser->f->pos] != '.')
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return 1;
+	if (tok.type != TOK_TYPE_DOT)
 		return 1;
 	if ((mod = parser_imported_find(&parser->imported, name)) == NULL)
 		return 1;
-	file_pos_next(parser->f);
-	if (!file_try_skip_space(parser->f))
-		goto err_has_space;
 	parser->scope = mod->scope;
 	ret = parse_type(parser, type);
 	parser->scope = orig_scope;
 	return ret;
-err_has_space:
-	printf("amc: type_get_from_module: %lld,%lld: Has space!\n",
-			parser->f->cur_line, parser->f->cur_column);
-	return 1;
 }
 
 int type_pair_parse_type(struct parser *parser, yz_type *type)
 {
-	if (parser->f->src[parser->f->pos] != ':')
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return 1;
+	if (tok.type != TOK_TYPE_COLON)
 		goto err_type_indicator_not_found;
-	file_pos_next(parser->f);
-	file_skip_space(parser->f);
 	return parse_type(parser, type);
 err_type_indicator_not_found:
-	printf("amc: type_pair_parse_name: %lld,%lld: "
-			"Type indicator not found\n",
-			parser->f->cur_line, parser->f->cur_column);
+	printf(LEXER_ERR_FMT"Type indicator not found!\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
 	return 1;
 }
 
 int parse_type(struct parser *parser, yz_type *result)
 {
-	str token = TOKEN_NEW;
-	yz_user_type *type = NULL;
+	struct lexer_tok tok;
 	if (result == NULL)
-		goto err_type_null;
-	if (parser->f->src[parser->f->pos] == '*') {
+		return 1;
+	if (lexer_read_tok(&tok, &parser->lexer))
+		return 1;
+	switch (tok.type) {
+	case TOK_TYPE_STR:
+		return parse_type_handle_str_kind(parser, result, &tok.data.s);
+	case TOK_TYPE_OP_MUL:
 		return parse_type_ptr(parser, result);
-	} else if (parser->f->src[parser->f->pos] == '[') {
+	case TOK_TYPE_BRACKET_L:
 		return parse_type_array(parser, result);
+	default: break;
 	}
-	if (token_read_before(SPECIAL_TOKEN_END, &token, parser->f) == NULL)
-		return 1;
-	if (parser->f->src[parser->f->pos] == '.') {
-		if (type_get_from_module(&token, result, parser))
-			return 1;
-		return 0;
-	}
-	file_skip_space(parser->f);
-	result->type = yz_type_get(&token);
-	result->v = NULL;
-	if (result->type != AMC_ERR_TYPE)
-		return 0;
-	if ((type = yz_user_type_find(&token, parser->scope)) == NULL)
-		return 1;
-	return parse_type_user(type, result);
-err_type_null:
-	printf("amc: parse_type: %lld,%lld: ARG is empty!\n",
-			parser->f->cur_line, parser->f->cur_column);
+#ifdef DEBUG
+	printf(LEXER_ERR_FMT"Token type not handled\n",
+			LEXER_ERR_FMT_ARG(parser->lexer));
+#endif
 	return 1;
 }
 
 int parse_type_name_pair(struct parser *parser, str *name, yz_type *type)
 {
-	str token = TOKEN_NEW;
-	if (symbol_read_name(&token, parser->f))
+	struct lexer_tok tok;
+	if (lexer_read_tok(&tok, &parser->lexer))
 		return 1;
-	str_copy(&token, name);
+	if (tok.type != TOK_TYPE_STR)
+		return 1;
+	str_copy(&tok.data.s, name);
 	return type_pair_parse_type(parser, type);
 }
 

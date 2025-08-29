@@ -5,6 +5,7 @@
 #include "include/expr.h"
 #include "include/identifier.h"
 #include "include/indent.h"
+#include "include/lexer.h"
 #include "include/utils.h"
 #include "../include/backend.h"
 #include "../include/checker/ptr.h"
@@ -14,9 +15,11 @@
 #include "../include/parser.h"
 #include "../include/ptr.h"
 #include "../include/symbol.h"
-#include "../include/token.h"
+#include "../utils/die.h"
 #include "../utils/str/str.h"
+#include <sclexer.h>
 #include <stdio.h>
+#include <string.h>
 
 static int identifier_assign_backend_call(struct symbol *sym, yz_val *val,
 		enum OP_ID mode);
@@ -48,18 +51,17 @@ identifier_try_handle_null(struct parser *parser, struct symbol *ident,
 		yz_val *val)
 {
 	backend_null_handle *handle;
-	str null_handler = {.len = 2, .s = "|?"};
-	i64 orig_line = parser->f->cur_line,
-	    orig_column = parser->f->cur_column,
-	    orig_pos = parser->f->pos;
-	if (!try_next_line(parser->f))
+	struct sclexer lexer_record;
+	long orig_pos = sclexer_record(&parser->lexer, &lexer_record);
+	if (orig_pos == -1)
 		return TRY_RESULT_FAULT;
-	if (indent_read(parser->f) != parser->scope->indent)
+	if (sclexer_get_line(&parser->lexer))
+		return TRY_RESULT_FAULT;
+	if (indent_read(&parser->lexer) != parser->scope->indent)
 		goto not_handled_restore_pos;
-	if (!token_try_read(&null_handler, parser->f))
+	if (lexer_try_read_str(&parser->lexer, "|?", 2)
+			!= TRY_RESULT_HANDLED)
 		goto err_maybe_null;
-	if (!block_check_start(parser->f))
-		return TRY_RESULT_FAULT;
 	((yz_ptr_type*)ident->result_type.v)->flag_checked_null = 1;
 	if (backend_call(null_handle_begin)(&handle, val))
 		return TRY_RESULT_FAULT;
@@ -69,18 +71,16 @@ identifier_try_handle_null(struct parser *parser, struct symbol *ident,
 		return TRY_RESULT_FAULT;
 	return TRY_RESULT_HANDLED;
 not_handled_restore_pos:
-	parser->f->cur_line = orig_line;
-	parser->f->cur_column = orig_column;
-	parser->f->pos = orig_pos;
-	return 0;
+	if (sclexer_restore(&parser->lexer, &lexer_record, orig_pos))
+		return TRY_RESULT_FAULT;
+	return TRY_RESULT_NOT_HANDLED;
 err_maybe_null:
-	printf("amc: identifier_check_can_assign_val: %lld,%lld: "
-			ERROR_STR":\n"
+	printf(LEXER_ERR_FMT ERROR_STR":\n"
 			"| Assign a can null value to a cannot be null "
 			"identifier: '%s'.\n"
 			"| "HINT_STR": "
 			"Append '|? =>' to next line to handle null branch\n",
-			parser->f->cur_line, parser->f->cur_column,
+			LEXER_ERR_FMT_ARG(parser->lexer),
 			ident->name.s);
 	return TRY_RESULT_FAULT;
 }
@@ -89,8 +89,8 @@ int identifier_assign_get_val(struct parser *parser,
 		yz_type *dest_type, yz_val **result)
 {
 	struct expr *expr = NULL;
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line;
+	uint64_t orig_column = parser->lexer.column,
+	         orig_line = parser->lexer.line;
 	if ((expr = parse_expr(parser, 1)) == NULL)
 		return err_print_pos(__func__, "Cannot parse expr!",
 				orig_line, orig_column);
@@ -109,8 +109,8 @@ err_cannot_apply_expr:
 int identifier_assign_val(struct parser *parser, struct symbol *sym,
 		enum OP_ID mode)
 {
-	i64 orig_column = parser->f->cur_column,
-	    orig_line = parser->f->cur_line;
+	uint64_t orig_column = parser->lexer.column,
+	         orig_line = parser->lexer.line;
 	int ret = 0;
 	yz_val *val = NULL;
 	if (sym->result_type.type == YZ_PTR)
@@ -124,8 +124,6 @@ int identifier_assign_val(struct parser *parser, struct symbol *sym,
 	if (identifier_assign_backend_call(sym, val, mode))
 		goto err_print_pos;
 	free_yz_val(val);
-	if (parser->f->src[parser->f->pos] == ']')
-		file_pos_next(parser->f);
 	return 0;
 err_print_pos:
 	err_print_pos(__func__, "Backend call failed!",
@@ -162,17 +160,17 @@ int identifier_check_can_assign_val(struct parser *parser,
 	return 1;
 err_print_pos:
 	err_print_pos(__func__, NULL,
-			parser->f->cur_line,
-			parser->f->cur_column);
+			parser->lexer.line,
+			parser->lexer.column);
 	return 0;
 }
 
-int identifier_check_mut(struct file *f)
+int identifier_check_mut(struct sclexer *lexer)
 {
-	str expect = {.len = 3, .s = "mut"};
-	if (token_try_read(&expect, f))
-		return 1;
-	return 0;
+	int ret = lexer_try_read_str(lexer, "mut", 3);
+	if (ret == TRY_RESULT_FAULT)
+		die("Failed to read token\n");
+	return ret;
 }
 
 yz_val *identifier_handle_expr_val(struct expr *e, yz_type *type)

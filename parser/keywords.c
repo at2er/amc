@@ -38,15 +38,6 @@ static struct symbol keywords[] = {
 	KW_DEF("while",  5, parse_while,     KW_REC, !KW_TOPLEVEL,  KW_IN_BLOCK),
 };
 
-int keyword_end(struct file *f)
-{
-	if (parse_comment(f))
-		return 0;
-	if (f->src[f->pos] == '\n')
-		file_line_next(f);
-	return 0;
-}
-
 int keyword_find(str *token, struct symbol **result)
 {
 	for (int i = 0; i < LENGTH(keywords); i++) {

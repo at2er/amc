@@ -26,7 +26,7 @@ char *asf_file_get_suffix(int *result_len, int *need_free)
 	return ".s";
 }
 
-int asf_file_new(struct file *f)
+int asf_file_new(void)
 {
 	const char *temp_rodata = ".section .rodata\n";
 	struct object_node *rodata = NULL;
