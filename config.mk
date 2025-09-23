@@ -1,5 +1,4 @@
 CC = gcc
-CFLAGS = -std=c99 -pedantic -Wall -Werror $(CDEBUG)
-CDEBUG = -g -DDEBUG
-
+CFLAGS = -Wall -pedantic -std=c99 -Iinclude
 AR = ar
+PREFIX = /usr/local

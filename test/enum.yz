@@ -5,15 +5,19 @@ struct A =>
 
 enum Bool: i32 => true | false
 
-;enum struct A =>
-;| default =>
-;	i = 0
-;	a = 0
-;	b = 0
-;| err =>
-;	i = 1
-;	b = 1
+; enum B: A =>
+; | default =>
+; 	i = 0
+; 	a = 0
+; 	b = 0
+; | err =>
+; 	i = 1
+; 	b = 1
 
 pub fn main: i32 =>
 	let a: Bool = Bool.false
+	let b: B = { 2, 1, null }
+	; match b
+	; | default => ret 1
+	; | err => ret 2
 	ret a

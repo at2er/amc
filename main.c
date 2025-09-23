@@ -1,19 +1,13 @@
+/* This file is part of amc.
+   SPDX-License-Identifier: GPL-3.0-or-later
+*/
+#include "parser.h"
 #include "utils/die.h"
-
-#include "include/backend.h"
-#include "include/parser.h"
-#include <string.h>
-
-/**
- * Please install 'libgetarg'(https://github.com/at2er/libgetarg)
- */
 #include <getarg.h>
+#include <string.h>
 
 #define AMC_VERSION "0.1"
 
-static const char *src = NULL;
-
-static int err_no_input(void);
 static int opt_as(int argc, char *argv[], struct option *opt);
 static int opt_as_flags(int argc, char *argv[], struct option *opt);
 static int opt_ld(int argc, char *argv[], struct option *opt);
@@ -92,56 +86,43 @@ static struct option options[] = {
 	}
 };
 
-int err_no_input(void)
-{
-	die("amc: \x1b[31merror\x1b[0m: no input file!\n");
-	return 1;
-}
-
 int opt_as(int argc, char *argv[], struct option *opt)
 {
-	backend_assembler = argv[0];
 	return 0;
 }
 
 int opt_as_flags(int argc, char *argv[], struct option *opt)
 {
-	return backend_append_assembler_flags(argv[0]);
+	return 0;
 }
 
 int opt_ld(int argc, char *argv[], struct option *opt)
 {
-	backend_linker = argv[0];
 	return 0;
 }
 
 int opt_ld_flags(int argc, char *argv[], struct option *opt)
 {
-	return backend_append_linker_flags(argv[0]);
+	return 0;
 }
 
 int opt_link(int argc, char *argv[], struct option *opt)
 {
-	return backend_append_lib(argv[0]);
+	return 0;
 }
 
 int opt_output(int argc, char *argv[], struct option *opt)
 {
-	global_parser.output.s = argv[0];
-	global_parser.output.len = strlen(argv[0]);
 	return 0;
 }
 
 int opt_read_src(int argc, char *argv[], struct option *opt)
 {
-	src = argv[0];
 	return 0;
 }
 
 int opt_root_mod(int argc, char *argv[], struct option *opt)
 {
-	global_parser.root_mod.s = argv[0];
-	global_parser.root_mod.len = strlen(global_parser.root_mod.s);
 	return 0;
 }
 
@@ -153,15 +134,16 @@ int print_version(void)
 
 int main(int argc, char *argv[])
 {
+	struct parser parser;
 	if (getarg(argc, argv, options))
 		return 1;
-	if (backend_init(argc, argv))
-		die("amc: backend_init: cannot init backend.");
 	if (argc < 2)
 		return print_version();
-	if (src == NULL)
-		return err_no_input();
-	if (parser_init(src))
+
+	lexer_init(&parser.lexer);
+	if (lexer_parse_file(&parser.lexer, argv[1]))
 		return 1;
+	lexer_print_block(&parser.lexer.root);
+
 	return 0;
 }

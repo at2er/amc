@@ -1,72 +1,52 @@
 include config.mk
 
-include backend/config.mk
-include checker/config.mk
-include comptime/config.mk
-include core/config.mk
-include parser/config.mk
-include utils/config.mk
-
 # libs
 include lib/libgetarg.mk
 include lib/libsctrie.mk
 include lib/libsclexer.mk
 CLIBS  = -L$(STRDIR) -lstr \
 	$(LIBGETARG) $(LIBSCTRIE) $(LIBSCLEXER)
-STRDIR = $(UTILS)/str
+STRDIR = utils/str
 STRLIB = $(STRDIR)/libstr.a
 
-OBJ = $(SRC:.c=.o)
-PREFIX = /usr/local
-SRC = main.c
+HEADER_DIR = $(PREFIX)/include/mcb
+TARGET_DIR = $(PREFIX)/bin
+
+BUILD_DIR = build
+
 TARGET = amc
 
-BUILD       = build
-UTILS       = utils
-CHECKER     = checker
-CORE        = core
-COMPTIME    = comptime
-PARSER      = parser
-BACKEND     = backend
-MODULES     = $(UTILS) $(CHECKER) $(CORE) $(COMPTIME) $(PARSER) $(BACKEND)
-MODULES_OBJ = $(UTILS_OBJ)\
-              $(CHECKER_OBJ)\
-              $(CORE_OBJ)\
-              $(COMPTIME_OBJ)\
-              $(PARSER_OBJ)\
-              $(BACKEND_OBJ)
-OBJ += $(MODULES_OBJ:../%=%)
+SUB_DIRS = utils
+SRC = $(wildcard *.c $(addsuffix /*.c,$(SUB_DIRS)))
+OBJ = $(addprefix $(BUILD_DIR)/,$(SRC:.c=.o))
+OBJ_DIRS = $(BUILD_DIR) $(addprefix $(BUILD_DIR)/,$(SUB_DIRS))
+OBJ_DEPS = $(addprefix $(BUILD_DIR)/,$(SRC:.c=.d))
 
-.PHONY: all clean install
-.PHONY: $(STRLIB) $(MODULES)
-all: $(TARGET)
+CC_CMD = $(CC) $(CFLAGS) -g -o $@
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+all: $(TARGET) $(HEADER)
 
-$(BUILD):
-	mkdir -p $(BUILD)
+$(OBJ_DIRS):
+	mkdir -p $@
 
-$(STRLIB):
-	@$(MAKE) -C $(STRDIR)
+$(BUILD_DIR)/%.o: %.c | $(OBJ_DIRS)
+	$(CC_CMD) -c -MMD $<
 
-$(MODULES): $(BUILD)
-	@$(MAKE) -C $@
-$(MODULES_OBJ): $(MODULES)
-
-$(TARGET): $(MODULES_OBJ) $(OBJ) $(STRLIB)
-	$(CC) $(CFLAGS) -o $@ $(OBJ) $(CLIBS)
+$(TARGET): $(OBJ) $(STRLIB)
+	$(CC_CMD) $(OBJ) $(CLIBS)
 
 clean:
-	rm -f $(TARGET) $(OBJ)
-	@$(MAKE) -C $(CHECKER) clean
-	@$(MAKE) -C $(CORE) clean
-	@$(MAKE) -C $(COMPTIME) clean
-	@$(MAKE) -C $(STRDIR) clean
-	@$(MAKE) -C $(PARSER) clean
-	@$(MAKE) -C $(BACKEND) clean
-	@$(MAKE) -C $(UTILS) clean
+	rm -f $(OBJ) $(TARGET)
 
-install: all
-	mkdir -p $(PREFIX)/bin
-	cp -f $(TARGET) $(PREFIX)/bin/$(TARGET)
+install:
+	mkdir -p $(TARGET_DIR)
+	cp -f $(TARGET) $(TARGET_DIR)/$(TARGET)
+
+uninstall:
+	rm -f $(TARGET_DIR)/$(TARGET)
+
+ifeq (,$(filter clean,$(MAKECMDGOALS)))
+-include $(OBJ_DEPS)
+endif
+
+.PHONY: all clean install uninstall

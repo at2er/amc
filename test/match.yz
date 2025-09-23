@@ -2,10 +2,10 @@ enum Bool: i32 => true | false
 
 pub fn main: i32 =>
 	let a: Bool = Bool.true
-	; match a
-	; | Bool.true =>
-	; 	ret 1
-	; | Bool.false => ret 2
+	match a
+	| Bool.true =>
+		ret 1
+	| Bool.false => ret 2
 	match
 	| 1 == 1 =>
 		ret 1
