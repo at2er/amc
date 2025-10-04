@@ -3,8 +3,10 @@
 */
 #ifndef AMC_PARSER_EXPR_H
 #define AMC_PARSER_EXPR_H
+#include "parser.h"
 #include "../expr.h"
+#include <stdint.h>
 
-int parse_expr(struct expr *expr);
+struct yz_expr *parse_expr(struct parser *parser);
 
 #endif

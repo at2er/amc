@@ -2,6 +2,8 @@
 #define STR_H
 
 #define STR_EMPTY {.len = 0, .s = NULL}
+#define STR_UNWRAP(STR) (STR).s, (STR).len
+#define STR_UNWRAP_REF(STR) (STR)->s, (STR)->len
 
 typedef struct str {
 	int len;

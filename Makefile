@@ -2,27 +2,27 @@ include config.mk
 
 # libs
 include lib/libgetarg.mk
+include lib/libmcb.mk
 include lib/libsctrie.mk
 include lib/libsclexer.mk
 CLIBS  = -L$(STRDIR) -lstr \
-	$(LIBGETARG) $(LIBSCTRIE) $(LIBSCLEXER)
+	$(LIBGETARG) $(LIBMCB) $(LIBSCTRIE) $(LIBSCLEXER)
 STRDIR = utils/str
 STRLIB = $(STRDIR)/libstr.a
 
-HEADER_DIR = $(PREFIX)/include/mcb
 TARGET_DIR = $(PREFIX)/bin
 
 BUILD_DIR = build
 
 TARGET = amc
 
-SUB_DIRS = utils
+SUB_DIRS = compiler parser utils
 SRC = $(wildcard *.c $(addsuffix /*.c,$(SUB_DIRS)))
 OBJ = $(addprefix $(BUILD_DIR)/,$(SRC:.c=.o))
 OBJ_DIRS = $(BUILD_DIR) $(addprefix $(BUILD_DIR)/,$(SUB_DIRS))
 OBJ_DEPS = $(addprefix $(BUILD_DIR)/,$(SRC:.c=.d))
 
-CC_CMD = $(CC) $(CFLAGS) -g -o $@
+CC_CMD = $(CC) $(CFLAGS) -g3 -o $@
 
 all: $(TARGET) $(HEADER)
 

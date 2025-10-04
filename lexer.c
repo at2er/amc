@@ -1,5 +1,10 @@
 /* This file is part of amc.
    SPDX-License-Identifier: GPL-3.0-or-later
+
+   Use the f**king macro magic to make codes jet into your ass.
+   If no macro, I can't think what my codes will do.
+   Like stir my hands, or f**king my eyes and /dev/barin?
+   Use `cat /dev/brain/power` to see my barin plz.
 */
 #include "lexer.h"
 #include <assert.h>
@@ -7,6 +12,7 @@
 #include <sclexer.h>
 #include <stdlib.h>
 
+/* Very convenient, isn't it? */
 #define ERR_FMT "\x1b[31mlexer error\x1b[0m: \x1b[1m%s\x1b[0m: %lu,%lu: "
 #define ERR_FMT_ARG(LEXER) \
 	(LEXER).fpath, \
@@ -38,13 +44,17 @@ static void init_block(struct lexer_block *block);
 static void join_eol(struct lexer_block *block);
 static void join_tok(struct lexer_block *block, struct lexer_tok *tok);
 static enum LEXER_RESULT parse_block_line(struct lexer *lexer);
-static enum LEXER_RESULT parse_line(struct lexer *lexer);
 static uint16_t read_indent(char *line);
 static enum LEXER_RESULT read_tok(struct lexer *lexer);
 static enum LEXER_RESULT read_tok_failed(struct sclexer *sclexer);
+static enum LEXER_RESULT read_tok_in_line(struct lexer *lexer);
+static int try_handle_keyword(struct lexer *lexer, struct sclexer_tok *tok);
 
 /**
  * Use your vim's `:s`, and these code will jet into your ass.
+ * Yes, I can use macro to implement this.
+ * If you want to see `#include "tok_str.def"` and two X macro jet into
+ * your /dev/eyes and /dev/barin.
  */
 static const char *tok_str[TOK_COUNT] = {
 	[TOK_EOB]                 = "TOK_EOB",
@@ -89,17 +99,12 @@ static const char *tok_str[TOK_COUNT] = {
 
 void handle_ident(struct lexer *lexer, struct sclexer_tok *tok)
 {
-	enum KEYWORDS kw;
-	struct lexer_tok *res = calloc(1, sizeof(*res));
-	kw = keyword_get(tok->type_data.str.s, tok->type_data.str.len);
-	if (kw != -1) {
-		res->type = TOK_KEYWORD;
-		res->data.keyword = kw;
-		join_tok(lexer->cur_block, res);
+	struct lexer_tok *res;
+	if (try_handle_keyword(lexer, tok))
 		return;
-	}
 	if (LAST_TOK(lexer) && LAST_TOK(lexer)->type == TOK_INFIX_MUL)
 		LAST_TOK(lexer)->type = TOK_UNARY_EXTRACT_PTR;
+	res = calloc(1, sizeof(*res));
 	res->type = TOK_IDENT;
 	res->data.s.len = tok->type_data.str.len;
 	res->data.s.s = str2chr(
@@ -116,6 +121,14 @@ enum LEXER_RESULT handle_block(struct lexer *lexer)
 	assert(LAST_TOK(lexer)->type == TOK_BLOCK_START);
 	LAST_TOK(lexer)->data.block.indent = lexer->cur_block->indent + 1;
 	lexer->cur_block = &LAST_TOK(lexer)->data.block;
+	if (lexer->self.cur[0] != '\n') {
+		ret = read_tok_in_line(lexer);
+		goto end;
+	}
+	if (sclexer_get_line(&lexer->self) == EOF) {
+		ret = LEXER_EOF;
+		goto end;
+	}
 	while ((ret = parse_block_line(lexer)) != LEXER_EOB) {
 		if (ret != LEXER_CONTINUE)
 			goto end;
@@ -275,30 +288,9 @@ void join_tok(struct lexer_block *block, struct lexer_tok *tok)
 
 enum LEXER_RESULT parse_block_line(struct lexer *lexer)
 {
-	enum LEXER_RESULT ret;
-	if (sclexer_get_line(&lexer->self) == EOF)
-		return LEXER_EOF;
 	if (read_indent(lexer->self.buf) != lexer->cur_block->indent)
 		return LEXER_EOB;
-	while ((ret = read_tok(lexer)) != LEXER_EOL) {
-		if (ret != LEXER_CONTINUE)
-			return ret;
-	}
-	join_eol(lexer->cur_block);
-	return LEXER_CONTINUE;
-}
-
-enum LEXER_RESULT parse_line(struct lexer *lexer)
-{
-	enum LEXER_RESULT ret;
-	if (sclexer_get_line(&lexer->self) == EOF)
-		return LEXER_EOF;
-	while ((ret = read_tok(lexer)) != LEXER_EOL) {
-		if (ret != LEXER_CONTINUE)
-			return ret;
-	}
-	join_eol(lexer->cur_block);
-	return LEXER_CONTINUE;
+	return read_tok_in_line(lexer);
 }
 
 uint16_t read_indent(char *line)
@@ -315,16 +307,20 @@ enum LEXER_RESULT read_tok(struct lexer *lexer)
 	struct sclexer_tok tok;
 	if (sclexer_read_tok(&tok, &lexer->self))
 		return read_tok_failed(&lexer->self);
-#define CASE_WITH_JOIN(TYPE, TOK) \
-	case TYPE: \
-		res = calloc(1, sizeof(*res)); \
-		res->type = TOK; \
-		join_tok(lexer->cur_block, res); \
-		break
 	switch (tok.type) {
 	case SCLEXER_TOK_TYPE_EMPTY: return LEXER_EOF;
-	CASE_WITH_JOIN(SCLEXER_TOK_TYPE_INT,     TOK_INT);
-	CASE_WITH_JOIN(SCLEXER_TOK_TYPE_INT_NEG, TOK_INT_NEG);
+	case SCLEXER_TOK_TYPE_INT:
+		res = calloc(1, sizeof(*res));
+		res->type = TOK_INT;
+		res->data.uint = tok.type_data.uint;
+		join_tok(lexer->cur_block, res);
+		break;
+	case SCLEXER_TOK_TYPE_INT_NEG:
+		res = calloc(1, sizeof(*res));
+		res->type = TOK_INT_NEG;
+		res->data.sint = tok.type_data.sint;
+		join_tok(lexer->cur_block, res);
+		break;
 	case SCLEXER_TOK_TYPE_SPACE:
 		if (tok.type_data.c == '\n')
 			return LEXER_EOL;
@@ -334,7 +330,6 @@ enum LEXER_RESULT read_tok(struct lexer *lexer)
 		break;
 	case SCLEXER_TOK_TYPE_SYM: return handle_sym(lexer, tok.type_data.c);
 	}
-#undef CASE_WITH_JOIN
 	return LEXER_CONTINUE;
 }
 
@@ -343,6 +338,73 @@ enum LEXER_RESULT read_tok_failed(struct sclexer *sclexer)
 	printf(ERR_FMT"failed to read tok with 'sclexer_read_tok'\n",
 			ERR_FMT_ARG_REF(sclexer));
 	return LEXER_ERR;
+}
+
+enum LEXER_RESULT read_tok_in_line(struct lexer *lexer)
+{
+	enum LEXER_RESULT ret;
+	while ((ret = read_tok(lexer)) != LEXER_EOL) {
+		if (ret != LEXER_CONTINUE)
+			return ret;
+	}
+	join_eol(lexer->cur_block);
+	if (sclexer_get_line(&lexer->self) == EOF)
+		return LEXER_EOF;
+	return LEXER_CONTINUE;
+}
+
+int try_handle_keyword(struct lexer *lexer, struct sclexer_tok *tok)
+{
+	struct lexer_tok *res = calloc(1, sizeof(*res));
+	res->data.keyword = keyword_get(
+			tok->type_data.str.s,
+			tok->type_data.str.len);
+	if (res->data.keyword == -1)
+		return 0;
+	res->type = TOK_KEYWORD;
+	join_tok(lexer->cur_block, res);
+	return 1;
+}
+
+void lexer_eat_tok(struct lexer_block *blk)
+{
+	struct lexer_tok *tok;
+	assert(blk);
+	tok = blk->begin;
+	blk->begin = blk->begin->next;
+	lexer_free_tok(tok);
+}
+
+int lexer_eat_tok_with(enum TOK_TYPE expect, struct lexer_block *blk)
+{
+	assert(blk);
+	if (blk->begin->type != expect)
+		return 1;
+	lexer_eat_tok(blk);
+	return 0;
+}
+
+void lexer_free_tok(struct lexer_tok *self)
+{
+	if (self->prev)
+		self->prev->next = self->next;
+	if (self->next)
+		self->next->prev = self->prev;
+	switch (self->type) {
+	case TOK_STRING:
+	case TOK_IDENT:
+		str_free_noself(&self->data.s);
+		break;
+	default: break;
+	}
+	free(self);
+}
+
+const char *lexer_get_tok_str(enum TOK_TYPE type)
+{
+	if (type >= TOK_COUNT)
+		return NULL;
+	return tok_str[type];
 }
 
 void lexer_init(struct lexer *lexer)
@@ -359,10 +421,13 @@ int lexer_parse_file(struct lexer *lexer, const char *fpath)
 	enum LEXER_RESULT ret;
 	assert(lexer && fpath);
 	sclexer_init(fpath, &lexer->self);
-	while ((ret = parse_line(lexer)) != LEXER_EOF) {
+	if (sclexer_get_line(&lexer->self) == EOF)
+		goto end;
+	while ((ret = read_tok_in_line(lexer)) != LEXER_EOF) {
 		if (ret != LEXER_CONTINUE)
 			goto err_end;
 	}
+end:
 	eof = calloc(1, sizeof(*eof));
 	eof->type = TOK_EOF;
 	join_tok(lexer->cur_block, eof);
@@ -384,7 +449,7 @@ err_end:
  */
 void lexer_print_block(struct lexer_block *blk)
 {
-	lexer_tok_for_each(cur, blk) {
+	lexer_tok_for_each(cur, blk->begin) {
 		switch (cur->type) {
 		case TOK_IDENT:
 			printf("<%s: '%s'>\n",
