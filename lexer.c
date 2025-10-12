@@ -146,8 +146,11 @@ enum LEXER_RESULT handle_pair(struct lexer *lexer, enum TOK_TYPE endof)
 {
 	enum LEXER_RESULT ret;
 	while ((ret = read_tok(lexer)) != LEXER_EOF) {
-		if (ret == LEXER_EOL && sclexer_get_line(&lexer->self) == EOF)
-			goto err_eof;
+		if (ret == LEXER_EOL) {
+			if (sclexer_get_line(&lexer->self) == EOF)
+				goto err_eof;
+			continue;
+		}
 		if (ret != LEXER_CONTINUE)
 			return ret;
 		if (LAST_TOK(lexer)->type == endof)
