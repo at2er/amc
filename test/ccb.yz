@@ -21,4 +21,4 @@ pub fn main: i32 =>
 		write 1, "\x1b[2J\x1b[1;1H", 10
 		write 1, " @ \noOo\n O ", 11
 		nanosleep &req, &rem
-	ret 0
+	return 0

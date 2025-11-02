@@ -8,7 +8,7 @@ struct Str =>
 fn func(s: *mut Str): i32 =>
 	let a: i32 = s.siz
 	s.siz = 1
-	ret a
+	return a
 
 pub fn main: i32 =>
 	let mut test: Str = { 3, 2, null }
@@ -19,4 +19,4 @@ pub fn main: i32 =>
 	let b: *i32 = &a
 	; let c: i32 = func &test
 	let c: i32 = test_.siz
-	ret c
+	return c

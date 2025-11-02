@@ -4,16 +4,16 @@
 fn func(a: i32): i32 =>
 	let b: i32 = 1
 	let c: i32 = 2
-	ret (3 * 4) - (a / 1) + b
+	return (3 * 4) - (a / 1) + b
 
 fn func_(a: i32): i32 =>
 	func (1 + 7)
-	ret 1 + 1
+	return 1 + 1
 
 fn func__(a: i32): i32 =>
-	ret 1
+	return 1
 
 ; The 3rd of comment test
 pub fn main: i32 => ; comment 4th
-	; ret func__ (1 + 2)
-	ret func (func 1) ; The 5th
+	; return func__ (1 + 2)
+	return func (func 1) ; The 5th

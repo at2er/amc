@@ -1,22 +1,22 @@
 ; multiple arguments.
 fn func(a: i32, b: i32, c: i32): i32 =>
 	let d: i32 = 2
-	ret a
+	return a
 
 ; recursion function call.
 fn rec func_rec(i: i32): i32 =>
-	ret func_rec (i + 1)
+	return func_rec (i + 1)
 
 ; nest function call.
 fn func_(i: i32): i32 =>
-	ret func (func 1, 2, 3), 2, 3
+	return func (func 1, 2, 3), 2, 3
 
 fn func_no_arg: i32 =>
-	ret 0
+	return 0
 
 fn func_no_arg_: i32 =>
-	ret (func_no_arg) + 2
+	return (func_no_arg) + 2
 
 pub fn main: i32 =>
 	let a: i32 = func_no_arg
-	ret func 1, 2, 3
+	return func 1, 2, 3

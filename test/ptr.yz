@@ -3,7 +3,7 @@ struct A =>
 
 fn func(a: *i32): i32 =>
 	*a = 4
-	ret 0
+	return 0
 
 pub fn main: i32 =>
 	let mut a: i32 = 1
@@ -13,4 +13,4 @@ pub fn main: i32 =>
 	let mut e: A = { null }
 	e.a = null
 	*b = 0
-	ret 0
+	return 0

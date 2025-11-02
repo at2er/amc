@@ -9,4 +9,4 @@ pub fn main: i32 =>
 		b = 4
 	if a < 1 =>
 		b = 5
-	ret b
+	return b

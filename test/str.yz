@@ -7,4 +7,4 @@ pub fn main: i32 =>
 	let mut c: [char] = "Hello!"
 	c = "H"
 	write 1, "Hello world!\n", 13
-	ret 0
+	return 0

@@ -1,7 +1,7 @@
 fn rec fib(n: i32): i32 =>
 	if n <= 1 =>
 		ret n
-	ret (fib (n - 1)) + (fib (n - 2))
+	return (fib (n - 1)) + (fib (n - 2))
 
 pub fn main: i32 =>
-	ret fib 35
+	return fib 35

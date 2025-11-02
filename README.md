@@ -4,12 +4,13 @@ Implementation on C.
 # Build
 > Unsupport `Windows`!
 
-## Install 'libgetarg'
-Follow [libgetarg.mk](lib/libgetarg.mk) to install libgetarg
-and configuration makefile.
+## Dependencies
+> [lib](lib) for more.
 
-## Install 'libsctrie'
-Like `Install 'libgetarg'` but see [libsctrie.mk](lib/libsctrie.mk).
+* [libgetarg](https://github.com/at2er/libgetarg)
+* [libsclexer](https://github.com/at2er/libsclexer)
+* [libsctrie](https://github.com/at2er/libsctrie)
+* [libmcb](https://github.com/at2er/libmcb)
 
 ## Build 'amc'
 > Try read [Makefile](Makefile) to learn more build options.

@@ -1,23 +1,23 @@
 ; TODO
 fn funca(a: *i32): i32 =>
 	let b: i32 = *a
-	ret b + 2
+	return b + 2
 
 fn funcb(a: *i32?): i32 =>
 	if a == null =>
-		ret 1
+		return 1
 	let b: i32 = *a
-	ret b
+	return b
 
 fn funcc(a: *i32?): *i32? =>
-	ret null
+	return null
 
 fn funcd(a: *i32?): *i32? =>
-	ret a
+	return a
 
 pub fn main: i32 =>
 	let mut a: i32 = 1
 	let mut b: *i32? = &a
 	let c: *i32 = funcc b
-	|? => ret 1
-	ret 0
+	|? => return 1
+	return 0

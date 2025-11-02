@@ -20,4 +20,4 @@ pub fn main: i32 =>
 	; match b
 	; | default => ret 1
 	; | err => ret 2
-	ret a
+	return a
