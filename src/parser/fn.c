@@ -9,7 +9,6 @@
 #include "../die.h"
 #include "../fn.h"
 #include "../lexer.h"
-#include "../object.h"
 #include "../panic.h"
 #include "../parser.h"
 #include "../module.h"
@@ -24,16 +23,16 @@
 #include <stdlib.h>
 
 static enum PARSER_LIST_RESULT check_func_arg_end(struct parser *parser);
-static int get_func_arg(struct parser *parser, struct yz_func *self);
-static int get_func_args(struct parser *parser, struct yz_func *self);
-static int get_func_call_arg(struct parser *parser,
-		struct yz_func_call *self,
+static int get_func_arg(struct yz_func *self, struct parser *parser);
+static int get_func_args(struct yz_func *self, struct parser *parser);
+static int get_func_call_arg(struct yz_func_call *self,
+		struct parser *parser,
 		uint16_t index);
 static struct yz_symbol *get_func_dest_symbol_tree(struct parser *parser,
 		enum YZ_SCOPE_TYPE scope_of);
 static int get_func_name(struct parser *parser, str *result);
-static int get_func_result_type(struct parser *parser, struct yz_func *self);
-static int get_func_sign(struct parser *parser, struct yz_func *self);
+static int get_func_result_type(struct yz_func *self, struct parser *parser);
+static int get_func_sign(struct yz_func *self, struct parser *parser);
 
 enum PARSER_LIST_RESULT check_func_arg_end(struct parser *parser)
 {
@@ -47,7 +46,7 @@ enum PARSER_LIST_RESULT check_func_arg_end(struct parser *parser)
 	return LIST_ERR;
 }
 
-int get_func_arg(struct parser *parser, struct yz_func *self)
+int get_func_arg(struct yz_func *self, struct parser *parser)
 {
 	struct yz_ident *ident = calloc(1, sizeof(*ident));
 	struct yz_symbol *wrapper;
@@ -56,7 +55,7 @@ int get_func_arg(struct parser *parser, struct yz_func *self)
 	if (ident->type.type == YZ_VOID)
 		goto err_void;
 
-	ident->object = create_yz_object();
+	ident->is_func_arg = true;
 
 	wrapper = append_symbol(&parser->symbols, &ident->name);
 	wrapper->type = YZ_FUNC_ARG;
@@ -74,21 +73,21 @@ err_void:
 	return 1;
 }
 
-int get_func_args(struct parser *parser, struct yz_func *self)
+int get_func_args(struct yz_func *self, struct parser *parser)
 {
 	enum PARSER_LIST_RESULT ret;
 	eat_tok_with_sym(LEXER_SYM_PAREN_L, parser);
 	while ((ret = check_func_arg_end(parser)) != LIST_END) {
 		if (ret == LIST_ERR)
 			return 1;
-		if (get_func_arg(parser, self))
+		if (get_func_arg(self, parser))
 			return 1;
 	}
 	return 0;
 }
 
-int get_func_call_arg(struct parser *parser,
-		struct yz_func_call *self,
+int get_func_call_arg(struct yz_func_call *self,
+		struct parser *parser,
 		uint16_t index)
 {
 	const struct yz_ident *cur = self->callee->args[index];
@@ -147,7 +146,7 @@ struct yz_symbol *get_func_dest_symbol_tree(struct parser *parser,
 	return NULL;
 }
 
-int get_func_result_type(struct parser *parser, struct yz_func *self)
+int get_func_result_type(struct yz_func *self, struct parser *parser)
 {
 	if (!eat_tok_with_sym(LEXER_SYM_COLON, parser))
 		goto err_unexpected_tok;
@@ -165,11 +164,11 @@ err_unexpected_tok:
 	return 1;
 }
 
-int get_func_sign(struct parser *parser, struct yz_func *self)
+int get_func_sign(struct yz_func *self, struct parser *parser)
 {
-	if (get_func_args(parser, self))
+	if (get_func_args(self, parser))
 		return 1;
-	return get_func_result_type(parser, self);
+	return get_func_result_type(self, parser);
 }
 
 struct yz_func_call *parse_func_call(struct parser *parser,
@@ -183,7 +182,7 @@ struct yz_func_call *parse_func_call(struct parser *parser,
 	result->argc = callee->argc;
 	result->args = calloc(result->argc, sizeof(*result->args));
 	for (uint16_t i = 0; i < result->argc; i++) {
-		if (get_func_call_arg(parser, result, i))
+		if (get_func_call_arg(result, parser, i))
 			goto err_free_result;
 	}
 	return result;
@@ -202,7 +201,7 @@ int parse_func_def(struct parser *parser, enum YZ_SCOPE_TYPE scope_of)
 	if (get_func_name(parser, &self->name))
 		goto err_free_self;
 	self->path = self->name;
-	if (get_func_sign(parser, self))
+	if (get_func_sign(self, parser))
 		goto err_free_self;
 
 	dst_sym_tree = get_func_dest_symbol_tree(parser, scope_of);

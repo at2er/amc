@@ -155,6 +155,9 @@ int main(int argc, char *argv[])
 	// struct mcb_context mcb_con;
 	struct parser parser = {0};
 	struct yz_module root_mod = {0};
+
+	amc_flags.debug = true;
+
 	if (getarg(argc, argv, options))
 		return 1;
 	if (argc < 2)

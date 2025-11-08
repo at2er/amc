@@ -48,6 +48,7 @@ struct yz_literal *parse_func_arg_literal(struct parser *parser,
 	self->data.ident = arg;
 	self->type.type = YZ_IDENT_LITERAL;
 	self->type.data.self = &self->data.ident->type;
+	eat_tok(parser);
 	return self;
 }
 
@@ -73,6 +74,7 @@ struct yz_literal *parse_ident_literal(struct parser *parser,
 	self->data.ident = sym->data.yz_ident;
 	self->type.type = YZ_IDENT_LITERAL;
 	self->type.data.self = &self->data.ident->type;
+	eat_tok(parser);
 	return self;
 }
 

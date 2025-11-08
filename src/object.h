@@ -27,12 +27,14 @@ struct yz_object_listener_list {
 };
 
 struct yz_object {
+	char *name;
+
 	uint32_t ref_count;
 
 	struct yz_object_listener_list after_life_end;
 };
 
-struct yz_object *create_yz_object(void);
+struct yz_object *create_yz_object(char *name);
 int end_object_life(struct yz_object *self);
 void free_yz_object(struct yz_object *self);
 void listen_object_event(struct yz_object_listener_list *event,

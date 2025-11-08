@@ -9,6 +9,7 @@
 #include <stdbool.h>
 
 struct yz_ident {
+	bool is_func_arg;
 	bool mut;
 	str name;
 	struct yz_object *object;
@@ -16,6 +17,7 @@ struct yz_ident {
 	struct yz_type type;
 };
 
+void drop_ident(struct yz_ident *self);
 void free_yz_ident(struct yz_ident *self);
 
 #endif

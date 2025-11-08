@@ -28,8 +28,10 @@ struct mcb_expr_operand *build_func_args(const struct yz_func_call *self)
 
 void get_arg_operands(const struct yz_func *self, struct mcb_operand **result)
 {
-	for (int i = 0; i < self->argc; i++)
+	for (int i = 0; i < self->argc; i++) {
 		result[i] = &self->args[i]->operand;
+		result[i]->size = get_size(&self->args[i]->type);
+	}
 }
 
 void build_mcb_expr_func_call_operand(struct mcb_expr_operand *result,

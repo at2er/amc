@@ -7,18 +7,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct yz_object *create_yz_object(void)
+struct yz_object *create_yz_object(char *name)
 {
 	struct yz_object *self = calloc(1, sizeof(*self));
+	self->name = name;
 	if (amc_flags.debug)
-		printf(DEBUG_FMT"object created\n");
+		printf(DEBUG_FMT"object '%s' created\n", self->name);
 	return self;
 }
 
 int end_object_life(struct yz_object *self)
 {
 	if (amc_flags.debug)
-		printf(DEBUG_FMT"object life end\n");
+		printf(DEBUG_FMT"object '%s' life end\n", self->name);
 	yz_object_listener_list_for_each(cur, self->after_life_end.begin) {
 		if (!cur->notify)
 			continue;
@@ -30,6 +31,9 @@ int end_object_life(struct yz_object *self)
 
 void free_yz_object(struct yz_object *self)
 {
+	if (!self)
+		return;
+	free(self);
 }
 
 void listen_object_event(struct yz_object_listener_list *event,

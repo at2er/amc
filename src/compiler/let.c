@@ -11,9 +11,8 @@ void compile_let(struct mcb_context *mcb,
 		struct yz_ident *ident,
 		const struct yz_expr *expr)
 {
-	struct mcb_operand result;
-	enum MCB_SIZE size = get_size(expr->sum_type);
-	if (MCB_CALL(mcb, alloc_var)(mcb, &result, NULL, size))
+	enum MCB_SIZE size = get_size(&ident->type);
+	if (MCB_CALL(mcb, alloc_var)(mcb, &ident->operand, NULL, size))
 		PANIC_MCB_CALL;
-	compile_expr(mcb, &result, expr);
+	compile_expr(mcb, &ident->operand, expr);
 }
