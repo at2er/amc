@@ -6,9 +6,9 @@
 #include "../panic.h"
 #include "../type.h"
 
-void get_imm_from_literal(struct mcb_operand *dst, const struct yz_literal *src)
+void build_mcb_imm(struct mcb_operand *dst, const struct yz_literal *src)
 {
-	dst->data.sint = src->data.sint;
+	dst->inner.sint = src->data.sint;
 	dst->size = get_size(&src->type);
 	dst->type = MCB_IMM;
 }

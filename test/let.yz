@@ -2,7 +2,7 @@ fn func_(a: i32, b: i32): i32 =>
 	return a + b
 
 fn func(a: i32): i32 =>
-	return (1 + 1) * (func_ 9, 1) - (6 / 2)
+	return (1 + 1) * (func_ 9 1) - (6 / 2)
 
 pub fn main: i32 =>
 	let aa: i32 = 2

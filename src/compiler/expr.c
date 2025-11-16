@@ -27,6 +27,7 @@ struct mcb_expr *build_mcb_expr(const struct yz_expr *self)
 	build_mcb_expr_operand(&result->lhs, self->data.binary.lhs);
 	build_mcb_expr_operand(&result->rhs, self->data.binary.rhs);
 	result->op = map_to_mcb_expr_op(self->type);
+	result->size = get_size(self->sum_type);
 	return result;
 }
 
@@ -60,16 +61,23 @@ enum MCB_EXPR_OPERATOR map_to_mcb_expr_op(enum YZ_EXPR_TYPE type)
 void build_mcb_expr_operand(struct mcb_expr_operand *result,
 		const struct yz_literal *literal)
 {
+	assert(literal);
 	if (literal->type.type == YZ_EXPR) {
-		result->type = MCB_EXPR_OPERAND_IS_EXPR;
 		result->inner.expr = build_mcb_expr(literal->data.expr);
+		result->size = result->inner.expr->size;
+		result->type = MCB_EXPR_OPERAND_IS_EXPR;
 		return;
 	} else if (literal->type.type == YZ_FUNC_CALL) {
 		build_mcb_expr_func_call_operand(result, literal->data.func_call);
 		return;
+	} else if (yz_type_is_integer_literal(literal->type.type)) {
+		build_mcb_imm(&result->inner.operand, literal);
+		result->size = result->inner.operand.size;
+		result->type = MCB_EXPR_OPERAND_IS_OPERAND;
+		return;
 	}
-	result->type = MCB_EXPR_OPERAND_IS_OPERAND;
-	get_imm_from_literal(&result->inner.operand, literal);
+	die(PANIC_FMT"invaild type %s\n", PANIC_FMT_ARG,
+			type_get_str(literal->type.type));
 }
 
 void compile_expr(struct mcb_context *mcb,
@@ -77,8 +85,7 @@ void compile_expr(struct mcb_context *mcb,
 		const struct yz_expr *self)
 {
 	assert(result && self);
-	if (self->type >= YZ_EXPR_BINARY_ADD
-			&& self->type <= YZ_EXPR_BINARY_SUB_ASSIGN) {
+	if (YZ_IS_BINARY_EXPR(self->type)) {
 		compile_binary(mcb, result, self);
 		return;
 	}

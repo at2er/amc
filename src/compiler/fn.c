@@ -37,11 +37,12 @@ void get_arg_operands(const struct yz_func *self, struct mcb_operand **result)
 void build_mcb_expr_func_call_operand(struct mcb_expr_operand *result,
 		const struct yz_func_call *self)
 {
-	result->type = MCB_EXPR_OPERAND_IS_FUNC_CALL;
 	result->inner.func_call = calloc(1, sizeof(*result->inner.func_call));
 	result->inner.func_call->argc = self->argc;
 	result->inner.func_call->args = build_func_args(self);
 	result->inner.func_call->name = self->callee->path.s;
+	result->type = MCB_EXPR_OPERAND_IS_FUNC_CALL;
+	result->size = get_size(&self->callee->type);
 }
 
 void compile_func_call(struct mcb_context *mcb,

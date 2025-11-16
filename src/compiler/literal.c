@@ -22,7 +22,7 @@ void compile_literal(struct mcb_context *mcb,
 	struct mcb_operand imm;
 	assert(self && src);
 	if (yz_type_is_integer(src->type.type)) {
-		get_imm_from_literal(&imm, src);
+		build_mcb_imm(&imm, src);
 		if (MCB_CALL(mcb, gen_mov)(mcb, self, &imm))
 			PANIC_MCB_CALL;
 		return;

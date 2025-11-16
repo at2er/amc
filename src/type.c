@@ -33,7 +33,7 @@ enum YZ_TYPE convert_digit_type(enum YZ_TYPE dst, enum YZ_TYPE src)
 			&& yz_type_is_unsigned_integer(dst))
 		return MAX(dst, src) == dst ? dst : -1;
 	if (yz_type_is_integer_literal(dst))
-		return -1;
+		return src;
 	if (yz_type_is_integer_literal(src))
 		return dst;
 	return -1;

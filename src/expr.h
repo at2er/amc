@@ -6,6 +6,10 @@
 #include "lexer.h"
 #include <stdint.h>
 
+#define YZ_IS_BINARY_EXPR(TYPE) \
+	((TYPE) >= YZ_EXPR_BINARY_ASSIGN \
+	 && (TYPE) <= YZ_EXPR_BINARY_SUB_ASSIGN)
+
 struct yz_literal;
 
 enum YZ_EXPR_TYPE {

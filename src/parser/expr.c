@@ -66,8 +66,8 @@ struct yz_expr *merge_expr(struct yz_expr *parent,
 	current_power = expr_binding_power[current->type];
 	parent_power  = expr_binding_power[parent->type];
 	if (parent_power > current_power)
-		return merge_to_parent_rhs(parent, current);
-	return merge_parent_to_lhs(parent, current);
+		return merge_parent_to_lhs(parent, current);
+	return merge_to_parent_rhs(parent, current);
 }
 
 struct yz_expr *merge_parent_to_lhs(struct yz_expr *parent,

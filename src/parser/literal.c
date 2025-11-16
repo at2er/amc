@@ -5,13 +5,16 @@
 #include "fn.h"
 #include "literal.h"
 #include "../die.h"
+#include "../expr.h"
 #include "../fn.h"
 #include "../lexer.h"
 #include "../literal.h"
 #include "../panic.h"
 #include "../parser.h"
+#include <assert.h>
 #include <sclexer.h>
 #include <sctrie.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -34,6 +37,11 @@ struct yz_literal *parse_expr_literal(struct parser *parser)
 	self->type.type = YZ_EXPR;
 	if (!eat_tok_with_sym(LEXER_SYM_PAREN_R, parser))
 		goto err_expr_not_end;
+	if (self->data.expr->type == YZ_EXPR_TERM_LITERAL) {
+		struct yz_literal *result = self->data.expr->data.term;
+		free(self);
+		return result;
+	}
 	return self;
 err_expr_not_end:
 	free_yz_literal(self);

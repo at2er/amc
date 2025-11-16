@@ -8,7 +8,7 @@
 #include <mcb/operand.h>
 #include <mcb/size.h>
 
-void get_imm_from_literal(struct mcb_operand *dst, const struct yz_literal *src);
+void build_mcb_imm(struct mcb_operand *dst, const struct yz_literal *src);
 enum MCB_SIZE get_size(const struct yz_type *type);
 
 #endif

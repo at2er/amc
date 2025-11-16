@@ -46,8 +46,7 @@ void free_yz_expr(struct yz_expr *self)
 		return;
 	default: break;
 	}
-	if (self->type >= YZ_EXPR_BINARY_ADD
-			&& self->type <= YZ_EXPR_BINARY_SUB_ASSIGN) {
+	if (YZ_IS_BINARY_EXPR(self->type)) {
 		free_yz_literal(self->data.binary.lhs);
 		free_yz_literal(self->data.binary.rhs);
 	}
