@@ -109,7 +109,7 @@ int parse_binary_expr(struct parser *parser,
 
 	if (first) {
 		expr->sum_type = (struct yz_type*)
-			convert_type_implicity(
+			get_sum_type(
 				&expr->data.binary.lhs->type,
 				&expr->data.binary.rhs->type);
 		if (!expr->sum_type)
@@ -119,10 +119,10 @@ int parse_binary_expr(struct parser *parser,
 
 	expr->sum_type = &expr->data.binary.rhs->type;
 	if ((*parent = merge_expr(*parent, expr)) == NULL)
-		die(PANIC_FMT"failed to merge expr\n", PANIC_FMT_ARG);
+		panic("failed to merge expr");
 
 	(*parent)->sum_type = (struct yz_type*)
-		convert_type_implicity(
+		get_sum_type(
 			&(*parent)->data.binary.lhs->type,
 			&(*parent)->data.binary.rhs->type);
 	if (*parent == NULL)
@@ -130,8 +130,7 @@ int parse_binary_expr(struct parser *parser,
 
 	return 0;
 panic_map_tok:
-	die(PANIC_FMT"failed to map token type to expr type\n",
-			PANIC_FMT_ARG);
+	panic("failed to map token type to expr type");
 	return 1;
 err_implicit_convertion_type:
 	printf(ERR_FMT"unsupport implicit convertions type '%s' and '%s'\n",

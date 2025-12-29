@@ -3,81 +3,77 @@
 */
 #include "expr.h"
 #include "fn.h"
+#include "ident.h"
 #include "literal.h"
 #include "operand.h"
 #include "panic.h"
-#include "../die.h"
 #include "../literal.h"
 #include "../type.h"
 #include <assert.h>
 #include <mcb/expr.h>
 #include <mcb/mcb.h>
+#include <mcb/inst/calc.h>
 #include <mcb/operand.h>
-#include <stdlib.h>
+#include <mcb/size.h>
 
-static struct mcb_expr *build_mcb_expr(const struct yz_expr *self);
+static void alloc_reg_if_need(struct mcb_context *mcb,
+		struct mcb_operand *container,
+		const struct yz_expr *expr);
 static void compile_binary(struct mcb_context *mcb,
-		struct mcb_operand *self,
-		const struct yz_expr *src);
-static enum MCB_EXPR_OPERATOR map_to_mcb_expr_op(enum YZ_EXPR_TYPE type);
+		struct mcb_operand *result,
+		const struct yz_expr *src,
+		mcb_calc_f func);
+static void compile_binary_operand(struct mcb_context *mcb,
+		struct mcb_operand *result,
+		const struct yz_literal *src);
 
-struct mcb_expr *build_mcb_expr(const struct yz_expr *self)
+void alloc_reg_if_need(struct mcb_context *mcb,
+		struct mcb_operand *container,
+		const struct yz_expr *expr)
 {
-	struct mcb_expr *result = calloc(1, sizeof(*result));
-	build_mcb_expr_operand(&result->lhs, self->data.binary.lhs);
-	build_mcb_expr_operand(&result->rhs, self->data.binary.rhs);
-	result->op = map_to_mcb_expr_op(self->type);
-	result->size = get_size(self->sum_type);
-	return result;
+	if (yz_type_is_integer(expr->data.binary.rhs->type.type))
+		return;
+	if (MCB_CALL(mcb, alloc_reg, container, NULL,
+				get_size(expr->sum_type)))
+		PANIC_MCB_CALL;
 }
 
 void compile_binary(struct mcb_context *mcb,
-		struct mcb_operand *self,
-		const struct yz_expr *src)
+		struct mcb_operand *result,
+		const struct yz_expr *src,
+		mcb_calc_f func)
 {
-	struct mcb_expr *expr = build_mcb_expr(src);
-	if (MCB_CALL(mcb, eval_expr)(mcb, self, expr))
+	struct mcb_operand lhs = {0}, rhs = {0};
+	lhs = *result;
+	compile_binary_operand(mcb, &lhs, src->data.binary.lhs);
+	alloc_reg_if_need(mcb, &rhs, src);
+	compile_binary_operand(mcb, &rhs, src->data.binary.rhs);
+	if (func(mcb, result, &lhs, &rhs))
 		PANIC_MCB_CALL;
-	mcb_free_expr(expr);
 }
 
-enum MCB_EXPR_OPERATOR map_to_mcb_expr_op(enum YZ_EXPR_TYPE type)
+void compile_binary_operand(struct mcb_context *mcb,
+		struct mcb_operand *result,
+		const struct yz_literal *src)
 {
-	switch (type) {
-	case YZ_EXPR_BINARY_ADD:        return MCB_EXPR_OPERATOR_IS_ADD;
-	case YZ_EXPR_BINARY_ADD_ASSIGN: return MCB_EXPR_OPERATOR_IS_ADD;
-	case YZ_EXPR_BINARY_DIV:        return MCB_EXPR_OPERATOR_IS_DIV;
-	case YZ_EXPR_BINARY_DIV_ASSIGN: return MCB_EXPR_OPERATOR_IS_DIV;
-	case YZ_EXPR_BINARY_MUL:        return MCB_EXPR_OPERATOR_IS_MUL;
-	case YZ_EXPR_BINARY_MUL_ASSIGN: return MCB_EXPR_OPERATOR_IS_MUL;
-	case YZ_EXPR_BINARY_SUB:        return MCB_EXPR_OPERATOR_IS_SUB;
-	case YZ_EXPR_BINARY_SUB_ASSIGN: return MCB_EXPR_OPERATOR_IS_SUB;
-		break;
+	if (yz_type_is_integer(src->type.type)) {
+		build_mcb_imm(result, src);
+		return;
+	}
+	switch (src->type.type) {
+	case YZ_EXPR:
+		compile_expr(mcb, result, src->data.expr);
+		return;
+	case YZ_FUNC_CALL:
+		compile_func_call(mcb, result, src->data.func_call);
+		return;
+	case YZ_IDENT_LITERAL:
+		compile_ident_literal(mcb, result, src->data.ident);
+		return;
 	default: break;
 	}
-	return -1;
-}
-
-void build_mcb_expr_operand(struct mcb_expr_operand *result,
-		const struct yz_literal *literal)
-{
-	assert(literal);
-	if (literal->type.type == YZ_EXPR) {
-		result->inner.expr = build_mcb_expr(literal->data.expr);
-		result->size = result->inner.expr->size;
-		result->type = MCB_EXPR_OPERAND_IS_EXPR;
-		return;
-	} else if (literal->type.type == YZ_FUNC_CALL) {
-		build_mcb_expr_func_call_operand(result, literal->data.func_call);
-		return;
-	} else if (yz_type_is_integer_literal(literal->type.type)) {
-		build_mcb_imm(&result->inner.operand, literal);
-		result->size = result->inner.operand.size;
-		result->type = MCB_EXPR_OPERAND_IS_OPERAND;
-		return;
-	}
-	die(PANIC_FMT"invaild type %s\n", PANIC_FMT_ARG,
-			type_get_str(literal->type.type));
+	panicf("failed to get operand data with type '%s'",
+			type_get_str(src->type.type));
 }
 
 void compile_expr(struct mcb_context *mcb,
@@ -85,17 +81,23 @@ void compile_expr(struct mcb_context *mcb,
 		const struct yz_expr *self)
 {
 	assert(result && self);
-	if (YZ_IS_BINARY_EXPR(self->type)) {
-		compile_binary(mcb, result, self);
-		return;
-	}
+
+#define CASE_BINARY(TYPE, GENERATOR) \
+	case TYPE: \
+		compile_binary(mcb, result, self, MCB_FUNC(mcb, GENERATOR)); \
+		return
+
 	switch (self->type) {
+	CASE_BINARY(YZ_EXPR_BINARY_ADD, add);
+	CASE_BINARY(YZ_EXPR_BINARY_DIV, div);
+	CASE_BINARY(YZ_EXPR_BINARY_MUL, mul);
+	CASE_BINARY(YZ_EXPR_BINARY_SUB, sub);
 	case YZ_EXPR_TERM_LITERAL:
 		compile_literal(mcb, result, self->data.term);
 		return;
 	default: break;
 	}
-	die(PANIC_FMT"failed to compile expr '%s'\n",
-			PANIC_FMT_ARG,
+	panicf("failed to compile expr '%s'",
 			get_yz_expr_type_str(self->type));
+#undef CASE_BINARY
 }

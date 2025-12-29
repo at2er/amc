@@ -25,6 +25,20 @@
 	CUR_TOK(PARSER).loc.line, \
 	CUR_TOK(PARSER).loc.column
 
+#define eprint(PARSER, FMT) \
+	printf(ERR_FMT FMT "\n", ERR_FMT_ARG(PARSER));
+#define eprintf(PARSER, FMT, ...) \
+	printf(ERR_FMT FMT "\n", ERR_FMT_ARG(PARSER), __VA_ARGS__);
+
+#define ereturn(VAL, PARSER, FMT) do { \
+		eprint(PARSER, FMT); \
+		return (VAL); \
+	} while (0)
+#define ereturnf(VAL, PARSER, FMT, ...) do { \
+		eprintf(PARSER, FMT, __VA_ARGS__); \
+		return (VAL); \
+	} while (0)
+
 enum PARSER_LIST_RESULT {
 	LIST_CONTINUE,
 	LIST_END,
@@ -36,7 +50,7 @@ struct parser {
 	struct sclexer_tok *tokens;
 	size_t tokens_count;
 
-	struct mcb_context mcb;
+	struct mcb_context *mcb;
 
 	struct yz_func *cur_func;
 	struct yz_scope *cur_scope;
@@ -52,7 +66,9 @@ bool eat_tok_with_sym(enum LEXER_SYMBOLS sym, struct parser *parser);
 struct yz_symbol *find_symbol_in_parser(const struct parser *parser,
 		const char *name,
 		size_t name_len);
-void parser_init(struct parser *parser, struct yz_module *mod);
+void init_parser(struct parser *parser,
+		struct yz_module *mod,
+		struct mcb_context *mcb);
 int parse_file(struct parser *parser, const char *fpath);
 struct sclexer_tok *peek_tok(struct parser *parser, size_t offset);
 struct sclexer_tok *peek_tok_with_kind(enum SCLEXER_TOK_KIND kind,

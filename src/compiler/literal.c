@@ -7,7 +7,6 @@
 #include "literal.h"
 #include "operand.h"
 #include "panic.h"
-#include "../die.h"
 #include "../literal.h"
 #include "../type.h"
 #include <assert.h>
@@ -23,18 +22,22 @@ void compile_literal(struct mcb_context *mcb,
 	assert(self && src);
 	if (yz_type_is_integer(src->type.type)) {
 		build_mcb_imm(&imm, src);
-		if (MCB_CALL(mcb, gen_mov)(mcb, self, &imm))
+		if (MCB_CALL(mcb, mov, self, &imm))
 			PANIC_MCB_CALL;
 		return;
-	} else if (src->type.type == YZ_EXPR) {
+	}
+	switch (src->type.type) {
+	case YZ_EXPR:
 		compile_expr(mcb, self, src->data.expr);
 		return;
-	} else if (src->type.type == YZ_FUNC_CALL) {
+	case YZ_FUNC_CALL:
 		compile_func_call(mcb, self, src->data.func_call);
 		return;
-	} else if (src->type.type == YZ_IDENT_LITERAL) {
+	case YZ_IDENT_LITERAL:
 		compile_ident_literal(mcb, self, src->data.ident);
 		return;
+	default: break;
 	}
-	die(PANIC_FMT"failed to get operand data\n", PANIC_FMT_ARG);
+	panicf("failed to get operand data with type '%s'",
+			type_get_str(src->type.type));
 }

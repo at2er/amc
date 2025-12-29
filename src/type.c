@@ -42,16 +42,16 @@ enum YZ_TYPE convert_digit_type(enum YZ_TYPE dst, enum YZ_TYPE src)
 const struct yz_type *convert_type_implicity(const struct yz_type *dst,
 		const struct yz_type *src)
 {
-	enum YZ_TYPE raw_dst, raw_src, tmp;
-	raw_dst = get_raw_type(dst);
-	raw_src = get_raw_type(src);
-	if (yz_type_is_integer(raw_dst) && yz_type_is_integer(raw_src)) {
-		tmp = convert_digit_type(raw_dst, raw_src);
-		if (tmp == -1)
-			return NULL;
-		return tmp == raw_dst ? dst : src;
-	}
-	return NULL;
+	const struct yz_type *lrc, *rrc;
+	enum YZ_TYPE tmp;
+	lrc = get_raw_type_container(dst);
+	rrc = get_raw_type_container(src);
+	if (!yz_type_is_integer(lrc->type) || !yz_type_is_integer(rrc->type))
+		return NULL;
+	tmp = convert_digit_type(lrc->type, rrc->type);
+	if (tmp == -1)
+		return NULL;
+	return tmp == dst->type ? dst : NULL;
 }
 
 void free_yz_type(struct yz_type *self)
@@ -69,15 +69,41 @@ void free_yz_type_noself(struct yz_type *self)
 
 enum YZ_TYPE get_raw_type(const struct yz_type *self)
 {
+	const struct yz_type *raw;
+	assert(self);
+	assert(raw = get_raw_type_container(self));
+	return self->type;
+}
+
+const struct yz_type *get_raw_type_container(const struct yz_type *self)
+{
 	assert(self);
 	switch (self->type) {
 	case YZ_EXPR:
 	case YZ_FUNC_CALL:
 	case YZ_IDENT_LITERAL:
-		return get_raw_type(self->data.self);
+		return get_raw_type_container(self->data.self);
 	default: break;
 	}
-	return self->type;
+	return self;
+}
+
+const struct yz_type *get_sum_type(
+		const struct yz_type *lhs,
+		const struct yz_type *rhs)
+{
+	const struct yz_type *lrc, *rrc;
+	enum YZ_TYPE tmp;
+
+	lrc = get_raw_type_container(lhs);
+	rrc = get_raw_type_container(rhs);
+	if (!yz_type_is_integer(lrc->type) || !yz_type_is_integer(rrc->type))
+		return NULL;
+
+	tmp = convert_digit_type(lrc->type, rrc->type);
+	if (tmp == -1)
+		return NULL;
+	return tmp == lrc->type ? lrc : rrc;
 }
 
 enum YZ_TYPE type_get(const char *str, int len)

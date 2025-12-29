@@ -50,7 +50,7 @@ enum LEXER_SYMBOLS {
 
 void dup_tok_str2str(str *dst, const struct sclexer_tok *tok);
 const char *get_token_str(const struct sclexer_tok *tok);
-void lexer_init(struct sclexer *self, const char *fpath);
+void init_lexer(struct sclexer *self, const char *fpath);
 void print_tokens(struct sclexer *self,
 		struct sclexer_tok *tokens,
 		size_t count);

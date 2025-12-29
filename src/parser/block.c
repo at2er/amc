@@ -32,8 +32,7 @@ int parse_keyword(struct parser *parser)
 		return parse_return(parser);
 	default: break;
 	}
-	die(PANIC_FMT"unsupport keyword: '%s'\n", PANIC_FMT_ARG,
-			get_token_str(&CUR_TOK(parser)));
+	panicf("unsupport keyword: '%s'", get_token_str(&CUR_TOK(parser)));
 	return 1;
 }
 

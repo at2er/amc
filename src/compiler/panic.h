@@ -6,6 +6,6 @@
 #include "../die.h"
 #include "../panic.h"
 
-#define PANIC_MCB_CALL die(PANIC_FMT"failed to call mcb\n", __FILE__, __func__)
+#define PANIC_MCB_CALL die(PANIC_FMT"failed to call mcb\n", PANIC_FMT_ARG)
 
 #endif

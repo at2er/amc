@@ -68,13 +68,13 @@
 void compile_return(struct mcb_context *mcb, const struct yz_expr *expr)
 {
 	struct mcb_operand result;
-	if (MCB_CALL(mcb, alloc_reg)(mcb, &result, NULL,
+	if (MCB_CALL(mcb, alloc_reg, &result, NULL,
 				get_size(expr->sum_type)))
 		PANIC_MCB_CALL;
 	print_yz_expr(expr, 0);
 	compile_expr(mcb, &result, expr);
-	if (MCB_CALL(mcb, func_ret)(mcb, &result))
+	if (MCB_CALL(mcb, func_ret, &result))
 		PANIC_MCB_CALL;
-	if (MCB_CALL(mcb, drop_reg)(mcb, &result))
+	if (MCB_CALL(mcb, drop_reg, &result))
 		PANIC_MCB_CALL;
 }

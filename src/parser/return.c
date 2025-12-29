@@ -20,8 +20,9 @@ int parse_return(struct parser *parser)
 	if (!convert_type_implicity(&parser->cur_func->type, expr->sum_type))
 		goto err_implicit_convertion_type;
 	expr->sum_type = &parser->cur_func->type;
+	merge_expr_integer_literal_type(expr->sum_type->type, expr);
 
-	compile_return(&parser->mcb, expr);
+	compile_return(parser->mcb, expr);
 	return 0;
 err_implicit_convertion_type:
 	printf(ERR_FMT"unsupport implicit convertions type '%s' and '%s'\n",

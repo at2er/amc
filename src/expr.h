@@ -4,6 +4,7 @@
 #ifndef AMC_EXPR_H
 #define AMC_EXPR_H
 #include "lexer.h"
+#include "type.h"
 #include <stdint.h>
 
 #define YZ_IS_BINARY_EXPR(TYPE) \
@@ -41,7 +42,11 @@ struct yz_expr {
 	struct yz_type *sum_type;
 };
 
+void merge_expr_integer_literal_type(enum YZ_TYPE sum, struct yz_expr *src);
+
 void free_yz_expr(struct yz_expr *self);
+
+const struct yz_type *get_expr_sum_type(const struct yz_expr *self);
 
 const char *get_yz_expr_type_str(enum YZ_EXPR_TYPE type);
 

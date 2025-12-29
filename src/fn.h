@@ -5,12 +5,15 @@
 #define AMC_FN_H
 #include "ident.h"
 #include "literal.h"
+#include "scope.h"
 #include "type.h"
 #include "str.h"
+#include <stdbool.h>
 #include <stdint.h>
 
 struct yz_func {
 	str name, path;
+	enum YZ_SCOPE_TYPE scope_of;
 	struct yz_type type;
 
 	/**

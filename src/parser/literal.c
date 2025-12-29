@@ -125,7 +125,7 @@ struct yz_literal *parse_symbol_literal(struct parser *parser)
 	default: break;
 	}
 	
-	die(PANIC_FMT"unprocessed symbol '%.*s'\n", PANIC_FMT_ARG,
+	panicf("unprocessed symbol '%.*s'",
 			(int)CUR_TOK(parser).data.str.len,
 			CUR_TOK(parser).data.str.begin);
 	return NULL;

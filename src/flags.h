@@ -3,13 +3,17 @@
 */
 #ifndef AMC_FLAGS_H
 #define AMC_FLAGS_H
+#include <stdint.h>
 
-#define DEBUG_FMT "[\x1b[34mdebug\x1b[0m] "
+#define test_amc_flags(FLAG) (amc_flags & FLAG)
 
-struct amc_flags_t {
-	unsigned int debug:1;
+enum {
+	AMC_FLAGS_DEBUG = 1,
+	AMC_FLAGS_STDOUT_MODE  = 1 << 1,
+	AMC_FLAGS_COMPILE_ONLY = 1 << 2,
+	AMC_FLAGS_NO_CACHE     = 1 << 3
 };
 
-extern struct amc_flags_t amc_flags;
+extern uint32_t amc_flags;
 
 #endif

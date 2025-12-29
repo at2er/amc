@@ -51,8 +51,7 @@ void free_yz_literal(struct yz_literal *self)
 	case YZ_EXPR:      free_yz_expr(self->data.expr);           break;
 	case YZ_FUNC_CALL: free_yz_func_call(self->data.func_call); break;
 	default:
-		die(PANIC_FMT"unprocessed type '%s'\n",
-				PANIC_FMT_ARG,
+		panicf("unprocessed type '%s'",
 				type_get_str(self->type.type));
 		break;
 	}

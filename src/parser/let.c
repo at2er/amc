@@ -30,13 +30,11 @@ int get_sign(struct yz_ident *self, struct parser *parser)
 		goto err_void;
 	return 0;
 err_unexpected_tok:
-	printf(ERR_FMT"miss identifier name, unexpected token: '%s'\n",
-			ERR_FMT_ARG(parser),
+	eprintf(parser, "miss identifier name, unexpected token '%s'",
 			get_token_str(&CUR_TOK(parser)));
 	return 1;
 err_void:
-	printf(ERR_FMT"identifier type cannot be 'void'\n",
-			ERR_FMT_ARG(parser));
+	eprint(parser, "identifier type cannot be 'void'");
 	return 1;
 }
 
@@ -65,17 +63,21 @@ int parse_let(struct parser *parser)
 
 	self->object = create_yz_object(self->name.s);
 	wrapper = append_symbol(&parser->symbols, &self->name);
+	if (!wrapper)
+		goto err_defined;
 	wrapper->type = YZ_IDENT;
 	wrapper->data.yz_ident = self;
 	append_symbol_to_scope(wrapper, parser->cur_scope);
 
-	compile_let(&parser->mcb, self, value);
+	compile_let(parser->mcb, self, value);
 	return 0;
 err_free_self:
 	free_yz_ident(self);
 	return 1;
 err_uninit:
-	printf(ERR_FMT"identifier is uninitialized!\n",
-			ERR_FMT_ARG(parser));
+	eprint(parser, "identifier is uninitialized");
+	goto err_free_self;
+err_defined:
+	eprint(parser, "symbol is defined");
 	goto err_free_self;
 }

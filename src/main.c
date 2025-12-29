@@ -1,170 +1,123 @@
 /* This file is part of amc.
    SPDX-License-Identifier: GPL-3.0-or-later
 */
+#include "compiler/cache.h"
+#include "compiler/path_max.h"
 #include "flags.h"
 #include "module.h"
+#include "panic.h"
 #include "parser.h"
-#include "die.h"
 #include <getarg.h>
+#include <mcb/mcb.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-#define AMC_VERSION "0.1"
+#ifdef __unix__
+#include <unistd.h>
+#else
+#error unsupport platform
+#endif
 
-// static int backend_init(struct mcb_context *context);
-static int opt_as(int argc, char *argv[], struct option *opt);
-static int opt_as_flags(int argc, char *argv[], struct option *opt);
-static int opt_ld(int argc, char *argv[], struct option *opt);
-static int opt_ld_flags(int argc, char *argv[], struct option *opt);
-static int opt_link(int argc, char *argv[], struct option *opt);
-static int opt_output(int argc, char *argv[], struct option *opt);
-static int opt_read_src(int argc, char *argv[], struct option *opt);
-static int opt_root_mod(int argc, char *argv[], struct option *opt);
-static int print_version(void);
+static void fini_mcb(struct mcb_context *mcb);
+static void init_cwd(char **self);
+static void init_mcb(struct mcb_context *mcb);
+static int parse_cmdline(int argc, char *argv[]);
 
-struct amc_flags_t amc_flags;
+uint32_t amc_flags = 0;
+struct global_cache amc_global_cache = {0};
 
 // static enum MCB_MODE backend_mode = MCB_MODE_GNU_ASM;
-static const char *output = NULL;
-static const char *src_path = NULL;
+static char *cwd = NULL;
+static const char *output = "a.out";
+static struct parser parser;
+static struct yz_module root_mod;
+static const char *root_file = NULL;
 
-// {{{ options define
+#include "usage.def"
+
 static struct option options[] = {
-	{
-		"as", '\0',
-		GETARG_SINGLE_ARG, 0,
-		opt_as,
-		"select assembler",
-		NULL
-	},
-	{
-		"as-flags", '\0',
-		GETARG_SINGLE_ARG, 0,
-		opt_as_flags,
-		"assembler options",
-		"Use '-f elf64 -p gas' and set assembler"
-			" to 'yasm' for assembler"
-	},
-	{
-		"help", 'h',
-		GETARG_HELP_OPT, 0,
-		NULL,
-		"show help documents",
-		NULL
-	},
-	{
-		"ld", '\0',
-		GETARG_SINGLE_ARG, 0,
-		opt_ld,
-		"select linker",
-		"Use 'ar' to generate a static library"
-	},
-	{
-		"ld-flags", '\0',
-		GETARG_SINGLE_ARG, 0,
-		opt_ld_flags,
-		"linker options",
-		"Use 'rcs' and set linker to 'ar' for linker"
-			" to generate a static library"
-	},
-	{
-		"link", 'l',
-		GETARG_SINGLE_ARG, 0,
-		opt_link,
-		"link other librarys",
-		"Don't use this option to link yz lib!"
-	},
-	{
-		"output", 'o',
-		GETARG_SINGLE_ARG, 0,
-		opt_output,
-		"output file name",
-		NULL
-	},
-	{
-		"root-mod", '\0',
-		GETARG_SINGLE_ARG, 0,
-		opt_root_mod,
-		"set root module name",
-		NULL
-	},
-	{
-		NULL, '\0',
-		GETARG_LIST_ARG, 0,
-		opt_read_src,
-		"source file",
-		NULL
-	}
+	OPT_FLAG("debug",  NO_SHORT_NAME,   &amc_flags, AMC_FLAGS_DEBUG),
+	OPT_FLAG("stdout", NO_SHORT_NAME,   &amc_flags, AMC_FLAGS_STDOUT_MODE),
+	OPT_HELP("help",       'h',          usages),
+	OPT_FLAG("no-cache", NO_SHORT_NAME, &amc_flags, AMC_FLAGS_NO_CACHE),
+	OPT_STRING("outdir", NO_SHORT_NAME, &amc_global_cache.dir.s),
+	OPT_STRING("output",   'o',          &output),
+	OPT_FLAG(NO_LONG_NAME, 'S',         &amc_flags, AMC_FLAGS_COMPILE_ONLY),
+	OPT_END
 };
-// }}}
 
-// {{{ option parsers define
-int opt_as(int argc, char *argv[], struct option *opt)
+void fini_mcb(struct mcb_context *mcb)
 {
-	return 0;
+	FILE *fp;
+	if (!test_amc_flags(AMC_FLAGS_STDOUT_MODE)) {
+		if (!(fp = fopen(output, "w")))
+			panicf("failed to open file '%s'", output);
+		if (MCB_CALL(mcb, link, output))
+			panic("failed to call mcb.link");
+		fclose(fp);
+	}
+	if (mcb_fini(mcb))
+		panic("failed to call mcb_done");
 }
 
-int opt_as_flags(int argc, char *argv[], struct option *opt)
+void init_cwd(char **self)
 {
-	return 0;
+	char *result = calloc(PATH_MAX + 1, sizeof(char));
+	result = getcwd(result, PATH_MAX);
+	if (!result)
+		panic("failed to get current working directory");
+	*self = result;
 }
 
-int opt_ld(int argc, char *argv[], struct option *opt)
+void init_mcb(struct mcb_context *mcb)
 {
-	return 0;
+	if (mcb_init(mcb, MCB_MODE_GNU_ASM))
+		panic("failed to init mcb");
 }
 
-int opt_ld_flags(int argc, char *argv[], struct option *opt)
+int parse_cmdline(int argc, char *argv[])
 {
-	return 0;
-}
+	enum GETARG_RESULT ret;
 
-int opt_link(int argc, char *argv[], struct option *opt)
-{
-	return 0;
-}
-
-int opt_output(int argc, char *argv[], struct option *opt)
-{
-	output = argv[0];
-	return 0;
-}
-
-int opt_read_src(int argc, char *argv[], struct option *opt)
-{
-	if (argc > 1)
+	GETARG_BEGIN(ret, argc, argv, options) {
+	case GETARG_RESULT_APPLIED_HELP_OPT:
 		return 1;
-	src_path = argv[0];
-	return 0;
-}
+	case GETARG_RESULT_SUCCESSFUL:
+		break;
+	case GETARG_RESULT_UNKNOWN:
+		if (root_file)
+			goto err_had_root_file;
+		root_file = *argv;
+		GETARG_SHIFT(argc, argv);
+		break;
+	default: goto err_failed_to_parse;
+	} GETARG_END;
 
-int opt_root_mod(int argc, char *argv[], struct option *opt)
-{
 	return 0;
+err_failed_to_parse:
+	panic("failed to parse command line arguments");
+	return 1;
+err_had_root_file:
+	panic("had root file");
+	return 1;
 }
-
-int print_version(void)
-{
-	die("Atom compiler(Yuan Zi Compiler) v%s\n", AMC_VERSION);
-	return 0;
-}
-
-// }}}
 
 int main(int argc, char *argv[])
 {
-	// struct mcb_context mcb_con;
-	struct parser parser = {0};
-	struct yz_module root_mod = {0};
-
-	amc_flags.debug = true;
-
-	if (getarg(argc, argv, options))
+	struct mcb_context mcb = {0};
+	if (parse_cmdline(argc, argv))
 		return 1;
-	if (argc < 2)
-		return print_version();
-	yz_module_init(&root_mod);
-	parser_init(&parser, &root_mod);
-	if (parse_file(&parser, src_path))
+	if (!root_file)
+		die("no input\n");
+	init_cwd(&cwd);
+	init_global_cache(&amc_global_cache, cwd, amc_global_cache.dir.s);
+	init_mcb(&mcb);
+	init_module(&root_mod);
+	init_parser(&parser, &root_mod, &mcb);
+	if (parse_file(&parser, root_file))
 		return 1;
+
+	fini_mcb(&mcb);
 	return 0;
 }

@@ -7,9 +7,6 @@
 #include <mcb/mcb.h>
 #include <mcb/operand.h>
 
-void build_mcb_expr_operand(struct mcb_expr_operand *result,
-		const struct yz_literal *literal);
-
 /**
  * Before compile expression, you must alloc a result container
  * for `container`.

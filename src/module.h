@@ -9,6 +9,6 @@ struct yz_module {
 	struct yz_symbol symbols;
 };
 
-void yz_module_init(struct yz_module *self);
+void init_module(struct yz_module *self);
 
 #endif

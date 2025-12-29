@@ -14,6 +14,6 @@ void compile_ident_literal(struct mcb_context *mcb,
 		*result = ident->operand;
 		return;
 	}
-	if (MCB_CALL(mcb, gen_mov)(mcb, result, &ident->operand))
+	if (MCB_CALL(mcb, mov, result, &ident->operand))
 		PANIC_MCB_CALL;
 }

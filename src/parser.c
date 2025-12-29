@@ -1,6 +1,7 @@
 /* This file is part of amc.
    SPDX-License-Identifier: GPL-3.0-or-later
 */
+#include "compiler/out.h"
 #include "die.h"
 #include "keyword.h"
 #include "lexer.h"
@@ -8,14 +9,40 @@
 #include "panic.h"
 #include "parser.h"
 #include "parser/fn.h"
+#include "parser/pub.h"
 #include "symbol.h"
 #include <assert.h>
+#include <mcb/mcb.h>
 #include <memory.h>
 #include <sclexer.h>
 #include <sctrie.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
+static int parse_tokens(struct parser *parser);
 static int parse_keyword(struct parser *parser);
+
+int parse_tokens(struct parser *parser)
+{
+	while (parser->cur_token < parser->tokens_count) {
+		switch (CUR_TOK(parser).kind) {
+		case SCLEXER_KEYWORD:
+			if (parse_keyword(parser))
+				return 1;
+			continue;
+		case SCLEXER_EOL:
+			eat_tok(parser);
+			continue;
+		default: goto panic_unsupport_tok; break;
+		}
+	}
+	return 0;
+panic_unsupport_tok:
+	panicf(LOC_FMT"failed to parse token '%s'",
+			LOC_FMT_ARG(parser),
+			get_token_str(&CUR_TOK(parser)));
+	return 1;
+}
 
 int parse_keyword(struct parser *parser)
 {
@@ -24,6 +51,9 @@ int parse_keyword(struct parser *parser)
 	case KEYWORD_FN:
 		eat_tok(parser);
 		return parse_func_def(parser, YZ_SCOPE_PRIVATE);
+	case KEYWORD_PUB:
+		eat_tok(parser);
+		return parse_pub(parser);
 	default: break;
 	}
 	die(LOC_FMT PANIC_FMT"unsupport keyword: '%s'\n",
@@ -64,12 +94,14 @@ struct yz_symbol *find_symbol_in_parser(const struct parser *parser,
 	return sctrie_find_elem(&parser->cur_mod->symbols, name, name_len);
 }
 
-void parser_init(struct parser *parser, struct yz_module *mod)
+void init_parser(struct parser *parser,
+		struct yz_module *mod,
+		struct mcb_context *mcb)
 {
 	assert(parser && mod);
+	memset(parser, 0, sizeof(*parser));
 	parser->cur_mod = mod;
-	if (mcb_init(&parser->mcb, MCB_MODE_GNU_ASM))
-		die(PANIC_FMT"failed to init mcb\n", PANIC_FMT_ARG);
+	parser->mcb = mcb;
 }
 
 int parse_file(struct parser *parser, const char *fpath)
@@ -81,34 +113,17 @@ int parse_file(struct parser *parser, const char *fpath)
 
 	lexer.src_siz = sclexer_read_file(&src, fpath);
 	lexer.src = src;
-	lexer_init(&lexer, fpath);
+	init_lexer(&lexer, fpath);
 
 	parser->tokens_count = sclexer_get_tokens(&lexer, &parser->tokens);
 	print_tokens(&lexer, parser->tokens, parser->tokens_count);
 
-	while (parser->cur_token < parser->tokens_count) {
-		switch (CUR_TOK(parser).kind) {
-		case SCLEXER_KEYWORD:
-			if (parse_keyword(parser))
-				return 1;
-			continue;
-		case SCLEXER_EOL:
-			eat_tok(parser);
-			continue;
-		default: goto panic_unsupport_tok; break;
-		}
-	}
+	if (parse_tokens(parser))
+		return 1;
 
 	free(src);
 
-	if (mcb_done(&parser->mcb, stdout))
-		die(PANIC_FMT"failed to make mcb done\n", PANIC_FMT_ARG);
-	return 0;
-panic_unsupport_tok:
-	die(LOC_FMT PANIC_FMT"failed to parse token '%s'\n",
-			LOC_FMT_ARG(parser), PANIC_FMT_ARG,
-			get_token_str(&CUR_TOK(parser)));
-	return 1;
+	return gen_file_output(parser->mcb, fpath);
 }
 
 struct sclexer_tok *peek_tok(struct parser *parser, size_t offset)

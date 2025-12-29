@@ -1,0 +1,17 @@
+/*
+ * vim:ft=c
+ */
+
+static const char *usages[] = {
+"usage: amc: [OPTIONS]... [FILE]",
+"",
+"options:",
+"      --debug:     enable debug mode",
+"      --stdout:    generate the module to stdout",
+"  -h, --help:      show usages",
+"      --no-cache:  don't generate .cache directory, but cache file still generate",
+"      --outdir:    specify output directory (default is '.cache/amc')",
+"  -o, --output:    specify output executable/library file (default is 'a.out'",
+"  -S:              generate code only, don't assemble or link",
+NULL
+};

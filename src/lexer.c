@@ -74,7 +74,7 @@ const char *get_token_str(const struct sclexer_tok *tok)
 	return sclexer_kind_names(tok->kind);
 }
 
-void lexer_init(struct sclexer *self, const char *fpath)
+void init_lexer(struct sclexer *self, const char *fpath)
 {
 	self->enable_indent = true;
 	self->comments = comments;

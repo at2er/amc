@@ -47,6 +47,11 @@ void free_yz_type(struct yz_type *self);
 void free_yz_type_noself(struct yz_type *self);
 
 enum YZ_TYPE get_raw_type(const struct yz_type *self);
+const struct yz_type *get_raw_type_container(const struct yz_type *self);
+
+const struct yz_type *get_sum_type(
+		const struct yz_type *lhs,
+		const struct yz_type *rhs);
 
 /**
  * @return: `enum YZ_TYPE` on success, -1 on not found.
