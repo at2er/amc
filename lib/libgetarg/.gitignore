@@ -1,0 +1,4 @@
+*.o
+*.debug.o
+libgetarg.a
+getarg.debug

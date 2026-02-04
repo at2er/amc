@@ -1,0 +1,11 @@
+@c.fn[print_int]
+fn print_int(i: i32): i32
+
+fn rec fib(n: i32): i32 =>
+	if n <= 1 =>
+		ret n
+	ret (fib (n - 1)) + (fib (n - 2))
+
+pub fn main: i32 =>
+	let a: i32 = fib 35
+	ret print_int a
